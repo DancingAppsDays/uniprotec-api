@@ -1,34 +1,60 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, Headers, Req, HttpCode } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
-import { CreatePaymentDto } from './dto/create-payment.dto';
-import { UpdatePaymentDto } from './dto/update-payment.dto';
+import { CreateCheckoutDto } from './dto/create-checkout.dto';
+import { Request } from 'express';
 
 @Controller('payments')
 export class PaymentsController {
-  constructor(private readonly paymentsService: PaymentsService) {}
+  constructor(private readonly paymentsService: PaymentsService) { }
 
-  @Post()
-  create(@Body() createPaymentDto: CreatePaymentDto) {
-    return this.paymentsService.create(createPaymentDto);
+
+  @Post('create-checkout-session')
+  createCheckoutSession(@Body() createCheckoutDto: CreateCheckoutDto) {
+    return this.paymentsService.createCheckoutSession(createCheckoutDto);
   }
 
-  @Get()
-  findAll() {
-    return this.paymentsService.findAll();
+  @Get('verify-session/:sessionId')
+  verifySession(@Param('sessionId') sessionId: string) {
+    return this.paymentsService.verifySession(sessionId);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.paymentsService.findOne(+id);
+  @Post('webhook')
+  @HttpCode(200)
+  handleWebhook(
+    @Headers('stripe-signature') signature: string,
+    @Req() request: Request,
+  ) {
+    return this.paymentsService.handleWebhook(signature, request.body);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updatePaymentDto: UpdatePaymentDto) {
-    return this.paymentsService.update(+id, updatePaymentDto);
-  }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.paymentsService.remove(+id);
-  }
+
+  /*
+    @Post()
+    create(@Body() createPaymentDto: CreatePaymentDto) {
+      return this.paymentsService.create(createPaymentDto);
+    }
+  
+    @Get()
+    findAll() {
+      return this.paymentsService.findAll();
+    }
+  
+    @Get(':id')
+    findOne(@Param('id') id: string) {
+      return this.paymentsService.findOne(+id);
+    }
+  
+    @Patch(':id')
+    update(@Param('id') id: string, @Body() updatePaymentDto: UpdatePaymentDto) {
+      return this.paymentsService.update(+id, updatePaymentDto);
+    }
+  
+    @Delete(':id')
+    remove(@Param('id') id: string) {
+      return this.paymentsService.remove(+id);
+  }*/
+
+
+
 }
