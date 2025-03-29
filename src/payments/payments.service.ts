@@ -15,8 +15,12 @@ export class PaymentsService {
     @InjectModel(Payment.name) private paymentModel: Model<PaymentDocument>,
     private configService: ConfigService,
   ) {
-    this.stripe = new Stripe(this.configService.get('STRIPE_SECRET_KEY'), {
-      apiVersion: '2023-10-16',
+    const stripeKey = this.configService.get<string>('STRIPE_SECRET_KEY');
+    if (!stripeKey) {
+      throw new Error('STRIPE_SECRET_KEY is not defined in environment variables');
+    }
+    this.stripe = new Stripe(stripeKey, {
+      apiVersion: '2023-10-16' as any,
     });
   }
 
@@ -110,7 +114,10 @@ export class PaymentsService {
   }
 
   async handleWebhook(signature: string, payload: Buffer) {
-    const webhookSecret = this.configService.get('STRIPE_WEBHOOK_SECRET');
+    const webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
+    if (!webhookSecret) {
+      throw new Error('STRIPE_WEBHOOK_SECRET is not defined in environment variables');
+    }
 
     try {
       const event = this.stripe.webhooks.constructEvent(
