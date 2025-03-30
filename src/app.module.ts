@@ -5,6 +5,8 @@ import { CoursesModule } from './courses/courses.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
 import { PaymentsModule } from './payments/payments.module';
+import { UsersModule } from './users/users.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -17,6 +19,8 @@ import { PaymentsModule } from './payments/payments.module';
       'mongodb://127.0.0.1:27017/uniprotec?directConnection=true&serverSelectionTimeoutMS=2000'),
     CoursesModule,
     PaymentsModule,
+    UsersModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
