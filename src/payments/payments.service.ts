@@ -7,6 +7,9 @@ import Stripe from 'stripe';
 import { Payment, PaymentDocument } from './schemas/payment.schema';
 import { CreateCheckoutDto } from './dto/create-checkout.dto';
 
+import { CoursesService } from '../courses/courses.service';
+import { EmailService } from '../email/email.service';
+
 @Injectable()
 export class PaymentsService {
   private stripe: Stripe;
@@ -14,6 +17,8 @@ export class PaymentsService {
   constructor(
     @InjectModel(Payment.name) private paymentModel: Model<PaymentDocument>,
     private configService: ConfigService,
+    private courseService: CoursesService, // Add this
+    private emailService: EmailService,    // Add this
   ) {
     const stripeKey = this.configService.get<string>('STRIPE_SECRET_KEY');
     if (!stripeKey) {
@@ -24,64 +29,66 @@ export class PaymentsService {
     });
   }
 
-  async createCheckoutSession(createCheckoutDto: CreateCheckoutDto) {
-    try {
-      const { courseId, courseTitle, price, quantity, customerEmail, selectedDate, successUrl, cancelUrl } = createCheckoutDto;
+async createCheckoutSession(createCheckoutDto: CreateCheckoutDto) {
+  try {
+    const { courseId, courseTitle, price, quantity, customerEmail, selectedDate, successUrl, cancelUrl, userId } = createCheckoutDto;
 
-      // Create line items for Stripe
-      const lineItems = [{
-        price_data: {
-          currency: 'mxn',
-          product_data: {
-            name: courseTitle,
-            description: `Fecha: ${selectedDate || 'N/A'}`,
-          },
-          unit_amount: Math.round(price * 100),
-        },
-        quantity,
-      }];
-
-      // Create checkout session
-      const session = await this.stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        line_items: lineItems,
-        mode: 'payment',
-        success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: cancelUrl,
-        customer_email: customerEmail,
-        metadata: {
-          course_id: courseId,
-          selected_date: selectedDate || '',
-        },
-      });
-
-      // Save payment info to database
-      await this.paymentModel.create({
-        amount: price,
+    // Create line items for Stripe
+    const lineItems = [{
+      price_data: {
         currency: 'mxn',
-        status: 'pending',
-        stripeSessionId: session.id,
-        customerEmail,
-        selectedDate,
-        course: courseId,
-        metadata: {
-          courseTitle,
-          quantity,
+        product_data: {
+          name: courseTitle,
+          description: `Fecha: ${selectedDate || 'N/A'}`,
         },
-      });
+        unit_amount: Math.round(price * 100),
+      },
+      quantity,
+    }];
 
-      return {
-        sessionId: session.id,
-        url: session.url,
-      };
-    } catch (error) {
-      console.error('Stripe error:', error);
-      if (error instanceof Stripe.errors.StripeError) {
-        throw new BadRequestException(error.message);
-      }
-      throw new InternalServerErrorException('Error creating checkout session');
+    // Create checkout session
+    const session = await this.stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: lineItems,
+      mode: 'payment',
+      success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: cancelUrl,
+      customer_email: customerEmail,
+      metadata: {
+        course_id: courseId,
+        selected_date: selectedDate || '',
+        user_id: userId || '',
+      },
+    });
+
+    // Save payment info to database
+    await this.paymentModel.create({
+      amount: price,
+      currency: 'mxn',
+      status: 'pending',
+      stripeSessionId: session.id,
+      customerEmail,
+      selectedDate,
+      course: courseId,
+      userId: userId,
+      metadata: {
+        courseTitle,
+        quantity,
+      },
+    });
+
+    return {
+      sessionId: session.id,
+      url: session.url,
+    };
+  } catch (error) {
+    console.error('Stripe error:', error);
+    if (error instanceof Stripe.errors.StripeError) {
+      throw new BadRequestException(error.message);
     }
+    throw new InternalServerErrorException('Error creating checkout session');
   }
+}
 
   async verifySession(sessionId: string) {
     try {
@@ -142,17 +149,32 @@ export class PaymentsService {
     }
   }
 
-  private async handleCompletedCheckout(session: Stripe.Checkout.Session) {
-    const payment = await this.paymentModel.findOne({ stripeSessionId: session.id });
+ private async handleCompletedCheckout(session: Stripe.Checkout.Session) {
+  const payment = await this.paymentModel.findOne({ stripeSessionId: session.id });
 
-    if (payment) {
-      payment.status = 'completed';
-      payment.stripePaymentIntentId = session.payment_intent as string;
-      await payment.save();
+  if (payment) {
+    payment.status = 'completed';
+    payment.stripePaymentIntentId = session.payment_intent as string;
+    await payment.save();
 
-      // Here you could trigger email notifications, etc.
+    // Fetch course details
+    const course = await this.courseService.findOne(payment.course.toString());
+    
+    // Send course access email
+    if (payment.customerEmail && course) {
+      // For now, using mock Zoom data - in production this would come from your Zoom API integration
+      const zoomData = {
+        title: course.title,
+        selectedDate: payment.selectedDate,
+        zoomLink: 'https://zoom.us/j/1234567890?pwd=abcdef',
+        zoomMeetingId: '123 456 7890',
+        zoomPassword: 'abcdef'
+      };
+      
+      await this.emailService.sendCourseAccessEmail(payment.customerEmail, zoomData);
     }
   }
+}
 
   private async handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     const payment = await this.paymentModel.findOne({ stripePaymentIntentId: paymentIntent.id });

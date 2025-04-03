@@ -7,4 +7,5 @@ export class CreateCheckoutDto {
     selectedDate?: string;
     successUrl: string;
     cancelUrl: string;
+    userId?: string;
 }
