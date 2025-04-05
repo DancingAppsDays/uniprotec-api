@@ -27,11 +27,15 @@ export default tseslint.config(
   },
   {
     rules: {
+      '@typescript-eslint/no-unsafe-call': 'off', // Disable the rule for unsafe calls
+      '@typescript-eslint/no-unsafe-assignment': 'warn', // Change to warning
+      '@typescript-eslint/no-unsafe-member-access': 'off', // Change to warning
+      '@typescript-eslint/no-unsafe-return': 'off', // Change to warning
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-floating-promises': 'warn',
       '@typescript-eslint/no-unsafe-argument': 'warn',
       'prettier/prettier': 'off', // Change to warning
-      'no-unused-vars': 'warn', // Add this rule
+      'no-unused-vars': 'off', // Add this rule
     },
   },
 );

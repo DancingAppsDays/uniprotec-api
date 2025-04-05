@@ -26,8 +26,8 @@ export class User {
   @Prop({ type: Object, default: {} })
   metadata: Record<string, any>;
 
-   // Add _id explicitly
-   _id: string;
+  // Add _id explicitly
+  _id: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

@@ -9,6 +9,12 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { EmailService } from './email/email.service';
 import { EmailModule } from './email/email.module';
+import { CourseDatesModule } from './course-date/course-date.module';
+import { EnrollmentsModule } from './enrollment/enrollment.module';
+import { PostponementPolicyModule } from './postponement-policy/postponement-policy.module';
+import { AdminModule } from './admin/admin/admin.module';
+import { ScheduledTasksModule } from './scheduled-tasks/scheduled-tasks.module';
+import { AdminModule } from './admin/admin/admin.module';
 
 @Module({
   imports: [
@@ -24,6 +30,11 @@ import { EmailModule } from './email/email.module';
     UsersModule,
     AuthModule,
     EmailModule,
+    CourseDatesModule,
+    EnrollmentsModule,
+    PostponementPolicyModule,
+    AdminModule,
+    ScheduledTasksModule,
   ],
   controllers: [AppController],
   providers: [AppService, EmailService],
