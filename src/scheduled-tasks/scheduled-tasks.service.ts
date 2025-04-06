@@ -6,6 +6,8 @@ import { EnrollmentsService } from '../enrollment/enrollment.service';
 import { EmailService } from '../email/email.service';
 import { CourseDateStatus } from '../course-date/schemas/course-date.schema';
 import { EnrollmentStatus } from '../enrollment/schemas/enrollment.schema';
+import { CreateScheduledTaskDto } from './dto/create-scheduled-task.dto';
+import { UpdateScheduledTaskDto } from './dto/update-scheduled-task.dto';
 
 @Injectable()
 export class ScheduledTasksService {
@@ -16,6 +18,9 @@ export class ScheduledTasksService {
     private readonly enrollmentsService: EnrollmentsService,
     private readonly emailService: EmailService,
   ) { }
+
+
+
 
   /**
    * Run daily at 6:00 AM to check for course dates that need to be postponed
@@ -52,6 +57,8 @@ export class ScheduledTasksService {
       const dateEnd = new Date(targetDate);
       dateEnd.setHours(23, 59, 59, 999);
 
+      //made coursedatemodel public in course-date.service.ts instead of using
+      //const upcomingCourseDates = await this.courseDatesService.findUpcomingByDateRange(dateStart, dateEnd);
       const upcomingCourseDates = await this.courseDatesService.courseDateModel.find({
         startDate: {
           $gte: dateStart,
@@ -150,4 +157,29 @@ export class ScheduledTasksService {
       this.logger.error('Error generating and sending certificates:', error);
     }
   }
+
+
+
+  //mockup methods stub methods
+  create(createScheduledTaskDto: CreateScheduledTaskDto) {
+    throw new Error('Method not implemented.');
+  }
+
+  findAll() {
+    throw new Error('Method not implemented.');
+  }
+
+  findOne(id: number) {
+    throw new Error('Method not implemented.');
+  }
+
+  update(id: number, updateScheduledTaskDto: UpdateScheduledTaskDto) {
+    throw new Error('Method not implemented.');
+  }
+
+  remove(id: number) {
+    throw new Error('Method not implemented.');
+  }
+
+
 }

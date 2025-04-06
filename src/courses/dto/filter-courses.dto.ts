@@ -1,7 +1,12 @@
-import { IsBoolean, IsNumber, IsOptional, IsString, Min } from "class-validator";
+import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, Min } from "class-validator";
 
 // src/courses/dto/filter-courses.dto.ts
 export class FilterCoursesDto {
+
+    @IsOptional()
+    @IsEnum(['date', 'title', 'price', 'createdAt']) // Add "createdAt" here
+    sort?: 'date' | 'title' | 'price' | 'createdAt';
+
     @IsString()
     @IsOptional()
     category?: string;
@@ -14,9 +19,9 @@ export class FilterCoursesDto {
     @IsOptional()
     search?: string;
 
-    @IsString()
-    @IsOptional()
-    sort?: 'price' | 'date' | 'title' = 'date';
+    // @IsString()
+    // @IsOptional()
+    // sort?: 'price' | 'date' | 'title' = 'date';
 
     @IsString()
     @IsOptional()

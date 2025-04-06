@@ -6,7 +6,7 @@ import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { Course, CourseDocument } from './schemas/course.schema';
 import { FilterCoursesDto } from './dto/filter-courses.dto';
-import { PostponementPolicyDto } from '../postponement-policy/dto/create-postponement-policy.dto';
+import { PostponementPolicyDto } from '../postponement-policy/dto/postponement-policy.dto';
 import { PostponementPolicy, PostponementPolicyDocument } from '../postponement-policy/schemas/postponement-policy.schema';
 import { CourseDate, CourseDateDocument, CourseDateStatus } from '../course-date/schemas/course-date.schema';
 
@@ -62,8 +62,7 @@ export class CoursesService {
     } else {
       sortOrder = -1;
     }
-
-    query = query.sort({ [sortField]: sortOrder });
+    query = query.sort({ [sortField]: sortOrder } as any);
 
     // Apply pagination
     if (limit) {
@@ -91,7 +90,7 @@ export class CoursesService {
             .exec();
 
           // Convert to plain object to add property
-          const courseObject = course.toObject();
+          const courseObject = course.toObject() as any;
           courseObject.courseInstances = courseDates;
 
           // Get the next available date
@@ -148,7 +147,7 @@ export class CoursesService {
     const policy = await this.policyModel.findOne({ course: id }).exec();
 
     // Convert to plain object to add properties
-    const courseObject = course.toObject();
+    const courseObject = course.toObject() as any;
     courseObject.courseInstances = courseDates;
 
     // Get the next available date and all available dates
@@ -227,6 +226,20 @@ export class CoursesService {
       policy = await newPolicy.save();
     }
 
+
+    // Handle possible null return in getPostponementPolicy (line 230)
+    if (!policy) {
+      return {
+        course: id,
+        minimumRequired: 6,
+        deadlineDays: 2,
+        enableAutoPostponement: false,
+        notifyUsers: true,
+        customMessage: 'This course requires a minimum number of participants.',
+        defaultNextCourseDate: new Date(), // Add the missing property
+      } as unknown as PostponementPolicy; //TODO CHECk: ADDED AS UNKOWN
+    }
+
     return policy;
   }
 
@@ -249,7 +262,8 @@ export class CoursesService {
         enableAutoPostponement: false,
         notifyUsers: true,
         customMessage: 'This course requires a minimum number of participants.',
-      } as PostponementPolicy;
+        defaultNextCourseDate: new Date(), // Add the missing property
+      } as unknown as PostponementPolicy; //todo check: added as unknown
     }
 
     return policy;

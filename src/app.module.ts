@@ -12,7 +12,6 @@ import { EmailModule } from './email/email.module';
 import { CourseDatesModule } from './course-date/course-date.module';
 import { EnrollmentsModule } from './enrollment/enrollment.module';
 import { PostponementPolicyModule } from './postponement-policy/postponement-policy.module';
-import { AdminModule } from './admin/admin/admin.module';
 import { ScheduledTasksModule } from './scheduled-tasks/scheduled-tasks.module';
 import { AdminModule } from './admin/admin/admin.module';
 
@@ -33,8 +32,8 @@ import { AdminModule } from './admin/admin/admin.module';
     CourseDatesModule,
     EnrollmentsModule,
     PostponementPolicyModule,
-    AdminModule,
     ScheduledTasksModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService, EmailService],

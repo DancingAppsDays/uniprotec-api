@@ -36,7 +36,7 @@ export class EnrollmentsController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
-  findAll(@Query('status') status?: EnrollmentStatus, @Request() req) {
+  findAll(@Request() req, @Query('status') status?: EnrollmentStatus) {
     // For regular users, only show their own enrollments
     if (!req.user.roles || !req.user.roles.includes('admin')) {
       return this.enrollmentsService.findByUser(req.user.userId, status);
@@ -48,9 +48,10 @@ export class EnrollmentsController {
   @Get('user/:userId')
   @UseGuards(JwtAuthGuard)
   findByUser(
+    @Request() req,
     @Param('userId') userId: string,
     @Query('status') status?: EnrollmentStatus,
-    @Request() req
+
   ) {
     // Users can only view their own enrollments unless they're an admin
     if (userId !== req.user.userId && !req.user.roles?.includes('admin')) {
@@ -62,9 +63,10 @@ export class EnrollmentsController {
   @Get('course-date/:courseDateId')
   @UseGuards(JwtAuthGuard)
   findByCourseDate(
+    @Request() req,
     @Param('courseDateId') courseDateId: string,
     @Query('status') status?: EnrollmentStatus,
-    @Request() req
+
   ) {
     // Only admins can view all enrollments for a course date
     if (!req.user.roles?.includes('admin')) {

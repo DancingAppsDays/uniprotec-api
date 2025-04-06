@@ -14,10 +14,10 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CourseDatesService } from '../../course-date/course-date.service';
 import { EnrollmentsService } from '../../enrollment/enrollment.service';
 import { CoursesService } from '../../courses/courses.service';
-import { PostponeCourseDateDto } from '../../course-date/dto/postpone-course-dates.dto';
+import { PostponeCourseDateDto } from '../../course-date/dto/pospone-course-date.dto'
 import { CancelCourseDateDto } from '../../course-date/dto/cancel-course-date.dto';
 import { CourseDateStatus } from '../../course-date/schemas/course-date.schema';
-import { FilterCourseDatesDto } from '../../course-date/dto/filter-course-dates.dto';
+import { FilterCourseDatesDto } from '../../course-date/dto/filter-course-dates-dto';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard)

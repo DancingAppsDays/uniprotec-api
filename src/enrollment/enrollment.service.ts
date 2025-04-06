@@ -14,7 +14,7 @@ import { EmailService } from '../email/email.service';
 @Injectable()
 export class EnrollmentsService {
   constructor(
-    @InjectModel(Enrollment.name) private enrollmentModel: Model<EnrollmentDocument>,
+    @InjectModel(Enrollment.name) public enrollmentModel: Model<EnrollmentDocument>,
     @InjectModel(CourseDate.name) private courseDateModel: Model<CourseDateDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Payment.name) private paymentModel: Model<PaymentDocument>,
@@ -68,7 +68,7 @@ export class EnrollmentsService {
     // Update course date enrolled count and add user to enrolled users
     await this.courseDatesService.addEnrolledUser(
       createEnrollmentDto.courseDate,
-      createEnrollmentDto.user
+      createEnrollmentDto.user || '',
     );
 
     // Send confirmation email
@@ -188,7 +188,12 @@ export class EnrollmentsService {
       enrollment.user._id.toString()
     );
 
-    return this.enrollmentModel.findByIdAndDelete(id).exec();
+    //  return this.enrollmentModel.findByIdAndDelete(id).exec();
+    const deleted = await this.enrollmentModel.findByIdAndDelete(id).exec();
+    if (!deleted) {
+      throw new NotFoundException(`Enrollment with ID ${id} not found`);
+    }
+    return deleted;
   }
 
   async updateStatus(id: string, status: EnrollmentStatus): Promise<Enrollment> {
@@ -232,8 +237,10 @@ export class EnrollmentsService {
   }
 
   async cancel(id: string, reason?: string): Promise<Enrollment> {
-    const enrollment = await this.findOne(id);
-
+    const enrollment = await this.enrollmentModel.findById(id); //was findone but mongo save did not like it
+    if (!enrollment) {
+      throw new NotFoundException(`Enrollment with ID ${id} not found`);
+    }
     // Update status to canceled
     enrollment.status = EnrollmentStatus.CANCELED;
 
@@ -261,7 +268,11 @@ export class EnrollmentsService {
       throw new BadRequestException('Rating must be between 1 and 5');
     }
 
-    const enrollment = await this.findOne(id);
+    //HEY CLAUDE: When calling save on an Enrollment instance, ensure that the instance is created or fetched using Mongoose methods like new this.enrollmentModel() or findById.
+    const enrollment = await this.enrollmentModel.findById(id);//.exec()//await this.enrollmentModel.findById(id).exec(); //await this.findOne(id);
+    if (!enrollment) {
+      throw new NotFoundException(`Enrollment with ID ${id} not found`);
+    }
 
     // Only allow feedback for completed courses
     if (enrollment.status !== EnrollmentStatus.COMPLETED) {

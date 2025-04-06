@@ -1,10 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { CreatePostponementPolicyDto } from './dto/create-postponement-policy.dto';
-import { UpdatePostponementPolicyDto } from './dto/update-postponement-policy.dto';
+import { PostponementPolicyDto } from './dto/postponement-policy.dto';
 
 @Injectable()
 export class PostponementPolicyService {
-  create(createPostponementPolicyDto: CreatePostponementPolicyDto) {
+  create(createPostponementPolicyDto: PostponementPolicyDto) {
     return 'This action adds a new postponementPolicy';
   }
 
@@ -16,7 +15,7 @@ export class PostponementPolicyService {
     return `This action returns a #${id} postponementPolicy`;
   }
 
-  update(id: number, updatePostponementPolicyDto: UpdatePostponementPolicyDto) {
+  update(id: number, updatePostponementPolicyDto: PostponementPolicyDto) {
     return `This action updates a #${id} postponementPolicy`;
   }
 

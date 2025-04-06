@@ -34,7 +34,7 @@ export class CoursesController {
   }
 
   @Get()
-  findAll(@Query() filterDto: FilterCoursesDto) {
+  findAll(@Query() filterDto: FilterCourseDatesDto) {
     return this.coursesService.findAll(filterDto);
   }
 

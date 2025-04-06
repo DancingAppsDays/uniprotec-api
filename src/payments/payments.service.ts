@@ -188,7 +188,7 @@ export class PaymentsService {
               user: payment.userId.toString(),
               courseDate: targetCourseDate.id,
               status: EnrollmentStatus.CONFIRMED,
-              payment: payment._id,
+              payment: payment._id.toString(),
               metadata: {
                 paymentMethod: 'stripe',
                 paymentSessionId: session.id,

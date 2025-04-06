@@ -8,13 +8,16 @@ import { CourseDate, CourseDateDocument, CourseDateStatus } from './schemas/cour
 import { Course, CourseDocument } from '../courses/schemas/course.schema';
 import { PostponementPolicy, PostponementPolicyDocument } from '../postponement-policy/schemas/postponement-policy.schema';
 import { EmailService } from '../email/email.service';
+import { FilterCourseDatesDto } from './dto/filter-course-dates-dto';
+import { User, UserDocument } from 'src/users/schemas/user.schema';
 
 @Injectable()
 export class CourseDatesService {
   constructor(
-    @InjectModel(CourseDate.name) private courseDateModel: Model<CourseDateDocument>,
+    @InjectModel(CourseDate.name) public courseDateModel: Model<CourseDateDocument>,
     @InjectModel(Course.name) private courseModel: Model<CourseDocument>,
     @InjectModel(PostponementPolicy.name) private policyModel: Model<PostponementPolicyDocument>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
     private emailService: EmailService,
   ) { }
 
@@ -28,12 +31,29 @@ export class CourseDatesService {
     const newCourseDate = new this.courseDateModel(createCourseDateDto);
     return newCourseDate.save();
   }
-
-  async findAll(status?: CourseDateStatus, featured?: boolean): Promise<CourseDate[]> {
+  async findAll(filterDto?: FilterCourseDatesDto | CourseDateStatus, featured?: boolean): Promise<CourseDate[]> {
     let query = this.courseDateModel.find().populate('course');
 
-    if (status) {
-      query = query.where('status').equals(status);
+    if (filterDto) {
+      if (typeof filterDto === 'string') {
+        // Handle the case when it's a status string
+        query = query.where('status').equals(filterDto);
+      } else {
+        // Handle the case when it's a FilterCourseDatesDto object
+        if (filterDto.status) {
+          query = query.where('status').equals(filterDto.status);
+        }
+
+        if (filterDto.startDateFrom) {
+          query = query.where('startDate').gte(filterDto.startDateFrom.getTime());
+        }
+
+        if (filterDto.startDateTo) {
+          query = query.where('startDate').lte(filterDto.startDateTo.getTime());
+        }
+
+        // Add more filter conditions as needed
+      }
     }
 
     if (featured === true) {
@@ -281,6 +301,26 @@ export class CourseDatesService {
     return courseDate.save();
   }
 
+  async findUpcomingByDateRange(startDate: Date, endDate: Date): Promise<CourseDate[]> {
+    return this.courseDateModel.find({
+      startDate: {
+        $gte: startDate,
+        $lte: endDate
+      },
+      status: CourseDateStatus.CONFIRMED
+    })
+      .populate('course')
+      .exec();
+  }
+
+
+
+
+
+
+
+
+
   async checkAllCoursesForPostponement(): Promise<any> {
     const now = new Date();
     const twoDaysFromNow = new Date(now);
@@ -348,16 +388,16 @@ export class CourseDatesService {
     return results;
   }
 
-  // Helper methods for notifications
   private async notifyUsersOfConfirmation(courseDate: CourseDate): Promise<void> {
     if (!courseDate.enrolledUsers || courseDate.enrolledUsers.length === 0) {
       return;
     }
 
-    for (const user of courseDate.enrolledUsers) {
+    for (const userId of courseDate.enrolledUsers) {
       try {
-        // Skip if the user doesn't have an email
-        if (!user.email) continue;
+        // Get the user first
+        const user = await this.userModel.findById(userId).exec();
+        if (!user || !user.email) continue;
 
         const courseData = {
           title: courseDate.course.title,
@@ -370,7 +410,7 @@ export class CourseDatesService {
 
         await this.emailService.sendCourseAccessEmail(user.email, courseData);
       } catch (error) {
-        console.error(`Error sending confirmation email to user ${user._id}:`, error);
+        console.error(`Error sending confirmation email to user ${userId}:`, error);
       }
     }
   }
@@ -408,4 +448,5 @@ export class CourseDatesService {
     // Implementation would be similar to confirmation notifications
     // This would send warnings about possible postponement due to low enrollment
   }
+
 }

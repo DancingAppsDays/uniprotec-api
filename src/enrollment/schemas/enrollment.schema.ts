@@ -24,8 +24,8 @@ export class Enrollment {
     @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'CourseDate', required: true })
     courseDate: CourseDate;
 
-    @Prop({ required: true, enum: EnrollmentStatus, default: EnrollmentStatus.PENDING })
-    status: EnrollmentStatus;
+    @Prop({ required: true, enum: EnrollmentStatus, default: EnrollmentStatus.PENDING }) // enum: ['confirmed', 'canceled', 'refunded', 'completed']
+    status: string;
 
     @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Payment' })
     payment: Payment;
