@@ -22,8 +22,15 @@ import { AdminModule } from './admin/admin/admin.module';
     }),
     //MongooseModule.forRoot(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/uniprotec?family=4'),
     MongooseModule.forRoot(
-      // process.env.MONGODB_URI ||
-      'mongodb://127.0.0.1:27017/uniprotec?directConnection=true&serverSelectionTimeoutMS=2000'),
+      process.env.MONGODB_URIPRO  || '',
+     // || `${process.env.MONGODB_URI}?directConnection=true&serverSelectionTimeoutMS=2000`
+     {
+      connectionFactory: (connection) => {
+        console.log('MongoDB URI:', process.env.MONGODB_URIPRO || 'mongodb://127.0.0.1:27017/uniprotec');
+        return connection;
+      },
+    },
+    ),
     CoursesModule,
     PaymentsModule,
     UsersModule,

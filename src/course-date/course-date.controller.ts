@@ -24,7 +24,7 @@ export class CourseDatesController {
   constructor(private readonly courseDatesService: CourseDatesService) { }
 
   @Post()
-  @UseGuards(JwtAuthGuard)
+ // @UseGuards(JwtAuthGuard)
   create(@Body() createCourseDateDto: CreateCourseDateDto) {
     return this.courseDatesService.create(createCourseDateDto);
   }

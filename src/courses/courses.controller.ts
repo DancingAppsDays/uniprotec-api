@@ -24,12 +24,12 @@ export class CoursesController {
   constructor(private readonly coursesService: CoursesService) { }
 
   @Post()
-  @UseGuards(JwtAuthGuard)
+   // @UseGuards(JwtAuthGuard)
   create(@Body() createCourseDto: CreateCourseDto, @Request() req) {
     // Only admin users can create courses
-    if (!req.user.roles?.includes('admin')) {
-      throw new ForbiddenException('You are not authorized to create courses');
-    }
+    // if (!req.user.roles?.includes('admin')) {
+    //   throw new ForbiddenException('You are not authorized to create courses');
+    // }
     return this.coursesService.create(createCourseDto);
   }
 

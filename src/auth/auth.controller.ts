@@ -1,7 +1,8 @@
 // src/auth/auth.controller.ts
-import { Controller, Request, Post, UseGuards, Body } from '@nestjs/common';
+import { Controller, Request, Post, UseGuards, Body, Get } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guards/local-auth.guard';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('auth')
 export class AuthController {
@@ -15,4 +16,25 @@ export class AuthController {
     }
     return this.authService.login(user);
   }
+
+
+
+  @Get('google')
+@UseGuards(AuthGuard('google'))
+googleAuth() {
+  // This triggers Google OAuth flow
+}
+
+@Get('google/callback')
+@UseGuards(AuthGuard('google'))
+googleAuthCallback(@Request() req) {
+  // After Google auth success
+  return req.user;
+}
+
+@Post('google/token')
+async googleTokenLogin(@Body() body: { token: string }) {
+  // For frontend Google token verification
+  return this.authService.validateGoogleToken(body.token);
+}
 }
