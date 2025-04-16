@@ -1,14 +1,14 @@
-// src/payments/payments.service.ts
 import { Injectable, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 import { Payment, PaymentDocument } from './schemas/payment.schema';
-import { CreateCheckoutDto } from './dto/create-checkout.dto';
-
-import { CoursesService } from '../courses/courses.service';
+import { CourseDatesService } from '../course-date/course-date.service';
+import { EnrollmentsService } from '../enrollment/enrollment.service';
 import { EmailService } from '../email/email.service';
+import { EnrollmentStatus } from '../enrollment/schemas/enrollment.schema';
+import { CreateCheckoutDto } from './dto/create-checkout.dto';
 
 @Injectable()
 export class PaymentsService {
@@ -17,8 +17,9 @@ export class PaymentsService {
   constructor(
     @InjectModel(Payment.name) private paymentModel: Model<PaymentDocument>,
     private configService: ConfigService,
-    private courseService: CoursesService, // Add this
-    private emailService: EmailService,    // Add this
+    private courseDatesService: CourseDatesService,
+    private enrollmentsService: EnrollmentsService,
+    private emailService: EmailService,
   ) {
     const stripeKey = this.configService.get<string>('STRIPE_SECRET_KEY');
     if (!stripeKey) {
@@ -29,66 +30,66 @@ export class PaymentsService {
     });
   }
 
-async createCheckoutSession(createCheckoutDto: CreateCheckoutDto) {
-  try {
-    const { courseId, courseTitle, price, quantity, customerEmail, selectedDate, successUrl, cancelUrl, userId } = createCheckoutDto;
+  async createCheckoutSession(createCheckoutDto: CreateCheckoutDto) {
+    try {
+      const { courseId, courseTitle, price, quantity, customerEmail, selectedDate, successUrl, cancelUrl, userId } = createCheckoutDto;
 
-    // Create line items for Stripe
-    const lineItems = [{
-      price_data: {
-        currency: 'mxn',
-        product_data: {
-          name: courseTitle,
-          description: `Fecha: ${selectedDate || 'N/A'}`,
+      // Create line items for Stripe
+      const lineItems = [{
+        price_data: {
+          currency: 'mxn',
+          product_data: {
+            name: courseTitle,
+            description: `Fecha: ${selectedDate || 'N/A'}`,
+          },
+          unit_amount: Math.round(price * 100),
         },
-        unit_amount: Math.round(price * 100),
-      },
-      quantity,
-    }];
-
-    // Create checkout session
-    const session = await this.stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: lineItems,
-      mode: 'payment',
-      success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: cancelUrl,
-      customer_email: customerEmail,
-      metadata: {
-        course_id: courseId,
-        selected_date: selectedDate || '',
-        user_id: userId || '',
-      },
-    });
-
-    // Save payment info to database
-    await this.paymentModel.create({
-      amount: price,
-      currency: 'mxn',
-      status: 'pending',
-      stripeSessionId: session.id,
-      customerEmail,
-      selectedDate,
-      course: courseId,
-      userId: userId,
-      metadata: {
-        courseTitle,
         quantity,
-      },
-    });
+      }];
 
-    return {
-      sessionId: session.id,
-      url: session.url,
-    };
-  } catch (error) {
-    console.error('Stripe error:', error);
-    if (error instanceof Stripe.errors.StripeError) {
-      throw new BadRequestException(error.message);
+      // Create checkout session
+      const session = await this.stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: lineItems,
+        mode: 'payment',
+        success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: cancelUrl,
+        customer_email: customerEmail,
+        metadata: {
+          course_id: courseId,
+          selected_date: selectedDate || '',
+          user_id: userId || '',
+        },
+      });
+
+      // Save payment info to database
+      await this.paymentModel.create({
+        amount: price,
+        currency: 'mxn',
+        status: 'pending',
+        stripeSessionId: session.id,
+        customerEmail,
+        selectedDate,
+        course: courseId,
+        userId: userId,
+        metadata: {
+          courseTitle,
+          quantity,
+        },
+      });
+
+      return {
+        sessionId: session.id,
+        url: session.url,
+      };
+    } catch (error) {
+      console.error('Stripe error:', error);
+      if (error instanceof Stripe.errors.StripeError) {
+        throw new BadRequestException(error.message);
+      }
+      throw new InternalServerErrorException('Error creating checkout session');
     }
-    throw new InternalServerErrorException('Error creating checkout session');
   }
-}
 
   async verifySession(sessionId: string) {
     try {
@@ -149,32 +150,88 @@ async createCheckoutSession(createCheckoutDto: CreateCheckoutDto) {
     }
   }
 
- private async handleCompletedCheckout(session: Stripe.Checkout.Session) {
-  const payment = await this.paymentModel.findOne({ stripeSessionId: session.id });
+  private async handleCompletedCheckout(session: Stripe.Checkout.Session) {
+    const payment = await this.paymentModel.findOne({ stripeSessionId: session.id });
 
-  if (payment) {
-    payment.status = 'completed';
-    payment.stripePaymentIntentId = session.payment_intent as string;
-    await payment.save();
+    if (payment) {
+      payment.status = 'completed';
+      payment.stripePaymentIntentId = session.payment_intent as string;
+      await payment.save();
 
-    // Fetch course details
-    const course = await this.courseService.findOne(payment.course.toString());
-    
-    // Send course access email
-    if (payment.customerEmail && course) {
-      // For now, using mock Zoom data - in production this would come from your Zoom API integration
-      const zoomData = {
-        title: course.title,
-        selectedDate: payment.selectedDate,
-        zoomLink: 'https://zoom.us/j/1234567890?pwd=abcdef',
-        zoomMeetingId: '123 456 7890',
-        zoomPassword: 'abcdef'
-      };
-      
-      await this.emailService.sendCourseAccessEmail(payment.customerEmail, zoomData);
+      // Create enrollment if this payment was for a course
+      if (payment.course && payment.selectedDate && payment.userId) {
+        try {
+          // Find the appropriate course date based on the selected date
+          const courseDates = await this.courseDatesService.findByCourse(payment.course.toString());
+
+          let targetCourseDate;
+          const selectedDate = new Date(payment.selectedDate);
+
+          // Find the course date that matches the selected date
+          for (const courseDate of courseDates) {
+            const courseDateStart = new Date(courseDate.startDate);
+
+            // Compare dates without time component
+            if (
+              courseDateStart.getFullYear() === selectedDate.getFullYear() &&
+              courseDateStart.getMonth() === selectedDate.getMonth() &&
+              courseDateStart.getDate() === selectedDate.getDate()
+            ) {
+              targetCourseDate = courseDate;
+              break;
+            }
+          }
+
+          if (targetCourseDate) {
+            // Create enrollment
+            await this.enrollmentsService.create({
+              user: payment.userId.toString(),
+              courseDate: targetCourseDate.id,
+              status: EnrollmentStatus.CONFIRMED,
+              payment: payment._id.toString(),
+              metadata: {
+                paymentMethod: 'stripe',
+                paymentSessionId: session.id,
+                paymentIntentId: session.payment_intent
+              }
+            });
+
+            console.log(`Enrollment created for user ${payment.userId} in course date ${targetCourseDate.id}`);
+          } else {
+            console.error('No matching course date found for the selected date:', payment.selectedDate);
+          }
+        } catch (error) {
+          console.error('Error creating enrollment:', error);
+        }
+      }
+
+      // Send course access email
+      if (payment.customerEmail) {
+        try {
+          // Try to get course details and send email
+          const courseDates = await this.courseDatesService.findByCourse(payment.course.toString());
+
+          if (courseDates && courseDates.length > 0) {
+            // Use the first course date for now (this should be improved to find the right one)
+            const courseDate = courseDates[0];
+
+            // For Zoom data - in a real implementation, you'd get this from the courseDate
+            const zoomData = {
+              title: payment.metadata?.courseTitle || 'Course',
+              selectedDate: payment.selectedDate,
+              zoomLink: courseDate.meetingUrl || 'https://zoom.us/meeting-link',
+              zoomMeetingId: courseDate.zoomMeetingId || '123 456 7890',
+              zoomPassword: courseDate.zoomPassword || 'password'
+            };
+
+            await this.emailService.sendCourseAccessEmail(payment.customerEmail, zoomData);
+          }
+        } catch (error) {
+          console.error('Error sending course access email:', error);
+        }
+      }
     }
   }
-}
 
   private async handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     const payment = await this.paymentModel.findOne({ stripePaymentIntentId: paymentIntent.id });

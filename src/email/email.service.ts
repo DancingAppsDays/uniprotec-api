@@ -37,4 +37,35 @@ export class EmailService {
       `,
     });
   }
+
+  async sendReminderEmail(email: string, courseData: any, daysUntil: number) {
+    await this.transporter.sendMail({
+      from: `"Academia Uniprotec" <${this.configService.get('EMAIL_FROM')}>`,
+      to: email,
+      subject: `Recordatorio: Tu curso comienza en ${daysUntil} días`,
+      html: `
+        <h1>Recordatorio de curso próximo</h1>
+        <p>Tu curso "${courseData.title}" comienza en ${daysUntil} días.</p>
+        <p><strong>Fecha:</strong> ${new Date(courseData.selectedDate).toLocaleDateString('es-MX')}</p>
+        <p><strong>Enlace Zoom:</strong> <a href="${courseData.zoomLink}">${courseData.zoomLink}</a></p>
+        <p><strong>ID de la reunión:</strong> ${courseData.zoomMeetingId}</p>
+        <p><strong>Contraseña:</strong> ${courseData.zoomPassword}</p>
+      `,
+    });
+  }
+
+  async sendCertificateEmail(email: string, userData: any, courseData: any, certificateUrl: string) {
+    await this.transporter.sendMail({
+      from: `"Academia Uniprotec" <${this.configService.get('EMAIL_FROM')}>`,
+      to: email,
+      subject: `Tu certificado para ${courseData.title}`,
+      html: `
+        <h1>¡Felicidades ${userData.fullName}!</h1>
+        <p>Has completado exitosamente el curso "${courseData.title}".</p>
+        <p>Puedes acceder a tu certificado en el siguiente enlace:</p>
+        <p><a href="${certificateUrl}">Descargar Certificado</a></p>
+      `,
+    });
+  }
+
 }
