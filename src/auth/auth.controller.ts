@@ -34,7 +34,14 @@ googleAuthCallback(@Request() req) {
 
 @Post('google/token')
 async googleTokenLogin(@Body() body: { token: string }) {
-  // For frontend Google token verification
-  return this.authService.validateGoogleToken(body.token);
+  console.log('Received Google token verification request');
+  try {
+    const result = await this.authService.validateGoogleToken(body.token);
+    console.log('Google token verification successful');
+    return result;
+  } catch (error) {
+    console.error('Google token verification failed:', error);
+    throw error;
+  }
 }
 }

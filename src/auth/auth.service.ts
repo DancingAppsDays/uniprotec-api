@@ -18,10 +18,11 @@ export class AuthService {
     private configService: ConfigService, 
   )  {
     // Initialize Google client
-    this.googleClient = new OAuth2Client(
-      this.configService.get<string>('GOOGLE_CLIENT_ID')
-    );
-    console.log("googclient"+  this.googleClient)
+      // Initialize Google client
+  const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
+  console.log("Initializing Google client with ID:", clientId);
+  this.googleClient = new OAuth2Client(clientId);
+    console.log(this.googleClient)
   }
 
   async validateUser(email: string, password: string): Promise<any> {
@@ -47,6 +48,8 @@ export class AuthService {
   }
 
   async validateGoogleToken(token: string): Promise<any> {
+    console.log("about to validetagoogletoken")
+    console.log("token"+token)
     try {
       // Verify the Google ID token
       const ticket = await this.googleClient.verifyIdToken({
