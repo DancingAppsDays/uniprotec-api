@@ -191,8 +191,44 @@ export class PaymentsService {
     }
   }
 
+
+  async handleWebhook(signature: string, payload: Buffer | string) {
+    const webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
+    if (!webhookSecret) {
+      throw new Error('STRIPE_WEBHOOK_SECRET is not defined in environment variables');
+    }
+  
+    console.log("Webhook secret:", webhookSecret);
+    console.log("Signature:", signature);
+    
+    try {
+      const event = this.stripe.webhooks.constructEvent(
+        payload,
+        signature,
+        webhookSecret
+      );
+  
+      console.log("Event type:", event.type);
+      
+      switch (event.type) {
+        case 'checkout.session.completed':
+          await this.handleCompletedCheckout(event.data.object as Stripe.Checkout.Session);
+          break;
+        case 'payment_intent.succeeded':
+          await this.handleSuccessfulPayment(event.data.object as Stripe.PaymentIntent);
+          break;
+      }
+  
+      return { received: true };
+    } catch (error) {
+      console.error('Webhook error:', error);
+      throw new BadRequestException(`Webhook error: ${error.message}`);
+    }
+  }
+
+
   //FOR TESTING ONLY
-  async handleWebhook(signature: string, payload: any): Promise<{ received: boolean }> {
+  async handleWebhooktest(signature: string, payload: any): Promise<{ received: boolean }> {
     try {
       let event;
       const webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
@@ -229,7 +265,7 @@ export class PaymentsService {
     }
   }
 
-  async handleWebhookREALONE(signature: string, payload: Buffer) {
+  async handleWebhooklegacyE(signature: string, payload: Buffer) {
     const webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
 
     console.log("Webhook secret:", webhookSecret);

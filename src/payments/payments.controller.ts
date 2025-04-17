@@ -30,25 +30,35 @@ testWebhook(@Body() data: any) {
   return this.paymentsService.testWebhook(data.paymentIntentId);
 }
 
+@Post('webhook')
+@HttpCode(200)
+handleWebhook(
+  @Headers('stripe-signature') signature: string,
+  @Req() request: Request,
+) {
+  // With the bodyParser.raw middleware, request.body is the raw buffer for '/payments/webhook'
+  return this.paymentsService.handleWebhook(signature, request.body);
+}
 
-   @Post('webhook')
-  @HttpCode(200)
-  // Use RawBodyRequest to get access to the raw body
-  handleWebhook(
-    @Headers('stripe-signature') signature: string,
-    //@Req() request: RawBodyRequest<Request>,
-    @Req() request: Request,
-  ) {
-    console.log('###Received webhook with signature:', signature);
-    //console.log('###Received webhook with headers:', request);
-    console.log(request);
-   // console.log('###Received webhook with raw body:', request?.rawBody?.toString());
-    if (!request) {
-      throw new Error('Raw body is missing in the request');
-    }
-    // Pass the raw body to the service
-    return this.paymentsService.handleWebhook(signature, request);
+
+@Post('webhooksss')
+@HttpCode(200)
+handleWebhook2(
+  @Headers('stripe-signature') signature: string,
+  @Req() request: RawBodyRequest<Request>,
+) {
+  // Use the raw body from the request for webhook verification
+  const rawBody = request.rawBody;
+  
+  // Make sure we have a raw body
+  if (!rawBody) {
+    console.error('No raw body available for webhook verification');
+    return { received: false, error: 'No raw body available' };
   }
+  
+  return this.paymentsService.handleWebhook(signature, rawBody);
+}
+}
 
 
 
@@ -76,8 +86,9 @@ testWebhook(@Body() data: any) {
     @Delete(':id')
     remove(@Param('id') id: string) {
       return this.paymentsService.remove(+id);
-  }*/
+  }
+}*/
 
 
 
-}
+
