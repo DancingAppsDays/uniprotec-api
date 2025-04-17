@@ -71,6 +71,33 @@ export class PaymentsService {
   }
 
 
+
+
+
+
+  async testWebhook(paymentIntentId: string): Promise<any> {
+    try {
+      // Fetch the payment intent from Stripe
+      const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
+      
+      // Process it as if it came from a webhook
+      await this.handleSuccessfulPayment(paymentIntent);
+      
+      return { success: true, message: 'Webhook test processed successfully' };
+    } catch (error) {
+      console.error('Test webhook failed:', error);
+      throw new InternalServerErrorException('Webhook test failed: ' + error.message);
+    }
+  }
+
+
+
+
+
+
+
+
+
   //deprecated in favor of elements, which is embed and requiered client secret
   async createCheckoutSession(createCheckoutDto: CreateCheckoutDto) {
     try {
@@ -164,7 +191,45 @@ export class PaymentsService {
     }
   }
 
-  async handleWebhook(signature: string, payload: Buffer) {
+  //FOR TESTING ONLY
+  async handleWebhook(signature: string, payload: any): Promise<{ received: boolean }> {
+    try {
+      let event;
+      const webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
+  
+      // For testing: if payload is not a buffer, assume it's the parsed JSON
+      if (Buffer.isBuffer(payload)) {
+        // Normal path with signature verification
+        event = this.stripe.webhooks.constructEvent(
+          payload,
+          signature,
+          webhookSecret || ''
+        );
+      } else {
+        // Alternative path for testing: use the parsed body directly
+        console.warn('Using parsed body without signature verification (for testing only)');
+        event = payload;
+      }
+  
+      console.log('Processing Stripe event:', event.type);
+  
+      switch (event.type) {
+        case 'checkout.session.completed':
+          await this.handleCompletedCheckout(event.data.object);
+          break;
+        case 'payment_intent.succeeded':
+          await this.handleSuccessfulPayment(event.data.object);
+          break;
+      }
+  
+      return { received: true };
+    } catch (error) {
+      console.error('Webhook error:', error);
+      throw new BadRequestException(`Webhook error: ${error.message}`);
+    }
+  }
+
+  async handleWebhookREALONE(signature: string, payload: Buffer) {
     const webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
 
     console.log("Webhook secret:", webhookSecret);
