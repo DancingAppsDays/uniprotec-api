@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import mongoose, { Model } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 import { Payment, PaymentDocument } from './schemas/payment.schema';
@@ -9,6 +9,7 @@ import { EnrollmentsService } from '../enrollment/enrollment.service';
 import { EmailService } from '../email/email.service';
 import { EnrollmentStatus } from '../enrollment/schemas/enrollment.schema';
 import { CreateCheckoutDto } from './dto/create-checkout.dto';
+import { CourseDate, CourseDateDocument } from 'src/course-date/schemas/course-date.schema';
 
 @Injectable()
 export class PaymentsService {
@@ -16,6 +17,7 @@ export class PaymentsService {
 
   constructor(
     @InjectModel(Payment.name) private paymentModel: Model<PaymentDocument>,
+    @InjectModel(CourseDate.name) private courseDateModel: Model<CourseDateDocument>,
     private configService: ConfigService,
     private courseDatesService: CourseDatesService,
     private enrollmentsService: EnrollmentsService,
@@ -30,6 +32,46 @@ export class PaymentsService {
     });
   }
 
+  async createPaymentIntent(data: any): Promise<{ clientSecret: string | null}> {
+    try {
+      const paymentIntent = await this.stripe.paymentIntents.create({
+        amount: Math.round(data.price * 100),
+        currency: 'mxn',
+        payment_method_types: ['card'],
+        metadata: {
+          course_id: data.courseId,
+          selected_date: data.selectedDate || '',
+          user_id: data.userId || '',
+        },
+      });
+  
+      // Save payment info to database
+      await this.paymentModel.create({
+        amount: data.price,
+        currency: 'mxn',
+        status: 'pending',
+        stripePaymentIntentId: paymentIntent.id,
+        customerEmail: data.customerEmail,
+        selectedDate: data.selectedDate,
+        course: data.courseId,
+        userId: data.userId,
+        metadata: {
+          courseTitle: data.courseTitle,
+          quantity: data.quantity,
+        },
+      });
+  
+      return {
+        clientSecret: paymentIntent.client_secret,
+      };
+    } catch (error) {
+      console.error('Stripe error:', error);
+      throw new BadRequestException(error.message);
+    }
+  }
+
+
+  //deprecated in favor of elements, which is embed and requiered client secret
   async createCheckoutSession(createCheckoutDto: CreateCheckoutDto) {
     try {
       const { courseId, courseTitle, price, quantity, customerEmail, selectedDate, successUrl, cancelUrl, userId } = createCheckoutDto;
@@ -64,6 +106,7 @@ export class PaymentsService {
 
       // Save payment info to database
       await this.paymentModel.create({
+      //  _id: new mongoose.Types.ObjectId().toString(), // Generate a new MongoDB ID
         amount: price,
         currency: 'mxn',
         status: 'pending',
@@ -123,6 +166,8 @@ export class PaymentsService {
 
   async handleWebhook(signature: string, payload: Buffer) {
     const webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
+
+    console.log("Webhook secret:", webhookSecret);
     if (!webhookSecret) {
       throw new Error('STRIPE_WEBHOOK_SECRET is not defined in environment variables');
     }
@@ -188,7 +233,7 @@ export class PaymentsService {
               user: payment.userId.toString(),
               courseDate: targetCourseDate.id,
               status: EnrollmentStatus.CONFIRMED,
-              payment: payment._id.toString(),
+              payment: payment._id!.toString(),
               metadata: {
                 paymentMethod: 'stripe',
                 paymentSessionId: session.id,
@@ -235,10 +280,58 @@ export class PaymentsService {
 
   private async handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     const payment = await this.paymentModel.findOne({ stripePaymentIntentId: paymentIntent.id });
-
+  
     if (payment) {
       payment.status = 'completed';
       await payment.save();
+      
+      // Create enrollment if this payment was for a course
+      if (payment.course && payment.selectedDate && payment.userId) {
+        try {
+          // Find the appropriate course date based on the selected date
+          const courseDates = await this.courseDateModel.find({
+            course: payment.course
+          }).exec();
+          
+          let targetCourseDate;
+          if (payment.selectedDate) {
+            const selectedDate = new Date(payment.selectedDate);
+            
+            // Find the course date that matches the selected date
+            for (const courseDate of courseDates) {
+              const courseDateStart = new Date(courseDate.startDate);
+              
+              // Compare dates without time component
+              if (
+                courseDateStart.getFullYear() === selectedDate.getFullYear() &&
+                courseDateStart.getMonth() === selectedDate.getMonth() &&
+                courseDateStart.getDate() === selectedDate.getDate()
+              ) {
+                targetCourseDate = courseDate;
+                break;
+              }
+            }
+          }
+          
+          if (targetCourseDate) {
+            // Create enrollment
+            await this.enrollmentsService.create({
+              user: payment.userId.toString(),
+              courseDate: targetCourseDate._id.toString(),
+              status: EnrollmentStatus.CONFIRMED,
+              payment: (payment._id as mongoose.Types.ObjectId).toString(), //experimental
+              metadata: {
+                paymentMethod: 'stripe',
+                paymentIntentId: paymentIntent.id
+              }
+            });
+            
+            console.log(`Enrollment created for user ${payment.userId} in course date ${targetCourseDate._id}`);
+          }
+        } catch (error) {
+          console.error('Error creating enrollment:', error);
+        }
+      }
     }
   }
 }

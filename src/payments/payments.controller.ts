@@ -13,6 +13,11 @@ export class PaymentsController {
     return this.paymentsService.createCheckoutSession(createCheckoutDto);
   }
 
+  @Post('create-payment-intent')
+createPaymentIntent(@Body() createPaymentDto: any) {
+  return this.paymentsService.createPaymentIntent(createPaymentDto);
+}
+
   @Get('verify-session/:sessionId')
   verifySession(@Param('sessionId') sessionId: string) {
     return this.paymentsService.verifySession(sessionId);
