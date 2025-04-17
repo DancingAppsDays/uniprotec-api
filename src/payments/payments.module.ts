@@ -8,16 +8,19 @@ import { CoursesModule } from '../courses/courses.module';
 import { EmailModule } from '../email/email.module';
 import { CourseDatesModule } from '../course-date/course-date.module';
 import { EnrollmentsModule } from '../enrollment/enrollment.module';
+import { CourseDate, CourseDateSchema } from 'src/course-date/schemas/course-date.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Payment.name, schema: PaymentSchema },
+      { name: CourseDate.name, schema: CourseDateSchema },
     ]),
     CoursesModule,
     EmailModule,
     CourseDatesModule,
-    EnrollmentsModule
+    EnrollmentsModule,
+    CourseDatesModule
   ],
   controllers: [PaymentsController],
   providers: [PaymentsService],

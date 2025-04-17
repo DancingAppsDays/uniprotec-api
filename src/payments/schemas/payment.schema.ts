@@ -8,8 +8,8 @@ export type PaymentDocument = Payment & Document;
 @Schema({ timestamps: true })
 export class Payment {
 
-    @Prop({ type: String })
-    _id: string;
+    // @Prop({ type: String })
+    // _id: string;
 
     @Prop({ type: String })
     userId?: string;
@@ -23,8 +23,9 @@ export class Payment {
     @Prop({ required: true })
     status: string;
 
-    @Prop({ required: true })
-    stripeSessionId: string;
+     // Make this optional when using PaymentIntent
+  @Prop({ required: false })  // Change this from required: true to required: false
+  stripeSessionId?: string;
 
     @Prop()
     stripePaymentIntentId?: string;
