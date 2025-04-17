@@ -19,11 +19,11 @@ export class AuthService {
   )  {
     // Initialize Google client
       // Initialize Google client
-  const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
-  console.log("Initializing Google client with ID:", clientId);
-  this.googleClient = new OAuth2Client(clientId);
-    console.log(this.googleClient)
-  }
+  // const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
+  // console.log("Initializing Google client with ID:", clientId);
+  // this.googleClient = new OAuth2Client(clientId);
+  //   console.log(this.googleClient)
+   }
 
   async validateUser(email: string, password: string): Promise<any> {
     const user = await this.usersService.validateUser(email, password);
@@ -36,13 +36,24 @@ export class AuthService {
 
   async login(user: any) {
     const payload = { email: user.email, sub: user._id };
+    // Make sure we're working with the document data
+    const userData = user._doc || user;
+    console.log('Login response:', {
+      token: this.jwtService.sign(payload),
+      user: {
+        id: userData._id,
+        email: userData.email,
+        fullName: userData.fullName,
+        phone: userData.phone,
+      },
+    });
     return {
       token: this.jwtService.sign(payload),
       user: {
-        id: user._id,
-        email: user.email,
-        fullName: user.fullName,
-        phone: user.phone
+        id: userData._id,
+        email: userData.email,
+        fullName: userData.fullName,
+        phone: userData.phone
       },
     };
   }
