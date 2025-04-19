@@ -254,12 +254,16 @@ export class CourseDatesService {
 
     // Check if the user is already enrolled
     if (courseDate.enrolledUsers && courseDate.enrolledUsers.includes(userId)) {
-      throw new BadRequestException('User is already enrolled in this course date');
+      //TODO CHECK LOGIC turns on this //THIS SHOULD BE BLOCKED BEFORE PAYMENT, NOT HERE
+      //throw new BadRequestException('User is already enrolled in this course date');
     }
 
     // Check if the course is full
     if (courseDate.enrolledCount >= courseDate.capacity) {
-      throw new BadRequestException('This course date is already at full capacity');
+      
+      //THIS SHOULD BE BLOCKED BEFORE PAYMENT, NOT HERE
+      //TODO CHECK LOGIC turns on this
+      //throw new BadRequestException('This course date is already at full capacity');
     }
 
     // Add the user to enrolled users and increment the count

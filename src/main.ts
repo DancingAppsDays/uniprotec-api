@@ -37,7 +37,7 @@ async function bootstrap() {
   //app.use(express.urlencoded({ extended: true }));
  
   app.enableCors({
-    origin: ['http://localhost:4200', 'http://localhost:3000'], // Add all your frontend origins
+    origin: ['http://localhost:4200', 'http://localhost:3000', process.env.FRONTEND_URL ], // Add all your frontend origins
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
     allowedHeaders: 'Origin,X-Requested-With,Content-Type,Accept,Authorization',
@@ -59,7 +59,9 @@ async function bootstrap() {
     next(); 
   });
 
-  await app.listen(process.env.PORT ?? 3000);
-
+  const port = process.env.PORT || 8000;
+  await app.listen(port);
+  //await app.listen(process.env.PORT ?? 3000);
+  console.log(`Application is running on: ${await app.getUrl()}`);
 }
 bootstrap();

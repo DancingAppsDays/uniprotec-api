@@ -7,9 +7,10 @@ import { Payment, PaymentDocument } from './schemas/payment.schema';
 import { CourseDatesService } from '../course-date/course-date.service';
 import { EnrollmentsService } from '../enrollment/enrollment.service';
 import { EmailService } from '../email/email.service';
-import { EnrollmentStatus } from '../enrollment/schemas/enrollment.schema';
+import { Enrollment, EnrollmentStatus } from '../enrollment/schemas/enrollment.schema';
 import { CreateCheckoutDto } from './dto/create-checkout.dto';
 import { CourseDate, CourseDateDocument } from 'src/course-date/schemas/course-date.schema';
+import { Course } from 'src/courses/schemas/course.schema';
 
 @Injectable()
 export class PaymentsService {
@@ -18,6 +19,8 @@ export class PaymentsService {
   constructor(
     @InjectModel(Payment.name) private paymentModel: Model<PaymentDocument>,
     @InjectModel(CourseDate.name) private courseDateModel: Model<CourseDateDocument>,
+    @InjectModel(Course.name) private courseModel: Model<CourseDateDocument>,
+    @InjectModel(Enrollment.name) private enrollmentModel: Model<CourseDateDocument>,
     private configService: ConfigService,
     private courseDatesService: CourseDatesService,
     private enrollmentsService: EnrollmentsService,
@@ -200,6 +203,7 @@ export class PaymentsService {
   
     console.log("Webhook secret:", webhookSecret);
     console.log("Signature:", signature);
+    console.log(payload)
     
     try {
       const event = this.stripe.webhooks.constructEvent(
@@ -550,5 +554,109 @@ private async handleCompletedCheckout(session: Stripe.Checkout.Session) {
         }
       }
     }
+  }
+
+
+  //requiered to prevent paying before checking duplicate enrollments
+  async validatePaymentRequest(
+    courseId: string,
+    selectedDateStr: string,
+    userId: string
+  ): Promise<{ valid: boolean; message?: string }> {
+    // Skip validation if userId is empty (will use email fallback later)
+    if (!userId) {
+      return { valid: false, message: 'User ID ERROR in payment not found' };
+    }
+
+    console.log(courseId, selectedDateStr, userId);
+    
+    try {
+      // Check if course exists
+      const course = await this.courseModel.findById(courseId).exec();
+      if (!course) {
+        return { valid: false, message: 'Course not found' };
+      }
+
+      const selectedDate = new Date(selectedDateStr);
+      const courseDates = await this.courseDateModel.find({
+        course: courseId
+      }).exec();
+
+      let targetCourseDate;
+      for (const courseDate of courseDates) {
+        const courseDateStart = new Date(courseDate.startDate);
+        
+        // Compare dates without time component
+        if (
+          courseDateStart.getFullYear() === selectedDate.getFullYear() &&
+          courseDateStart.getMonth() === selectedDate.getMonth() &&
+          courseDateStart.getDate() === selectedDate.getDate()
+        ) {
+          targetCourseDate = courseDate;
+          break;
+        }
+      }
+      
+      if (!targetCourseDate) {
+        return { valid: false, message: 'Invalid course date selected' };
+      }
+      
+      if (targetCourseDate.enrolledCount >= targetCourseDate.capacity) {
+        return { valid: false, message: 'Este curso ya no tiene lugares disponibles' };
+      }
+
+       // Check if user is already enrolled
+    const existingEnrollment = await this.enrollmentModel.findOne({
+      user: userId,
+      courseDate: targetCourseDate._id,
+      status: { $nin: ['canceled', 'refunded'] }
+    }).exec();
+    
+    if (existingEnrollment) {
+      return { 
+        valid: false, 
+        message: 'Ya estás inscrito en este curso' 
+      };
+    }
+    
+    return { valid: true };
+  } catch (error) {
+    console.error('Payment validation error:', error);
+    return { valid: false, message: 'Falló la validación del pago' };
+  }
+
+      //TODO CHECK IF  this apraoch is affected by multiple same course dates on same day
+      //previous implemataion, required coursedateid, which is not supported but might be
+      /*
+      // Check if course date exists and has capacity
+      const courseDate = await this.courseDateModel.findById(courseDateId).exec();
+      if (!courseDate) {
+        return { valid: false, message: 'Course date not found' };
+      }
+      
+      if (courseDate.enrolledCount >= courseDate.capacity) {
+        return { valid: false, message: 'This course date is at full capacity' };
+      }
+      
+      // Check if user is already enrolled
+      const enrollments = await this.enrollmentsService.findByCourseDate(courseDateId);
+      const userEnrollment = enrollments.find(e => 
+        e.user._id.toString() === userId && 
+        e.status !== 'canceled' && 
+        e.status !== 'refunded'
+      );
+      
+      if (userEnrollment) {
+        return { 
+          valid: false, 
+          message: 'You are already enrolled in this course' 
+        };
+      }
+      
+      return { valid: true };
+    } catch (error) {
+      console.error('Payment validation error:', error);
+      return { valid: false, message: 'Failed to validate payment request' };
+    }*/
   }
 }

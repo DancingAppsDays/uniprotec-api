@@ -173,4 +173,18 @@ export class EnrollmentsController {
 
     return this.enrollmentsService.provideFeedback(id, data.feedback, data.rating);
   }
+
+  //unused endpoint?
+  @Get('check/:courseDate/:userId')
+async checkEnrollmentStatus(
+  @Param('courseDate') courseDateId: string,
+  @Param('userId') userId: string
+) {
+  try {
+    const isEnrolled = await this.enrollmentsService.isUserEnrolled(courseDateId, userId);
+    return { enrolled: isEnrolled };
+  } catch (error) {
+    throw new BadRequestException('Failed to check enrollment status');
+  }
+}
 }

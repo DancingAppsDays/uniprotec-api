@@ -40,7 +40,20 @@ handleWebhook(
   return this.paymentsService.handleWebhook(signature, request.body);
 }
 
+@Post('validate-payment')
+async validatePaymentRequest(@Body() validationData: {
+  courseId: string;
+  selectedDate: string; // Use the date string instead of courseDate ID //courseDateId: string; 
+  userId: string;
+}) {
+  return this.paymentsService.validatePaymentRequest(
+    validationData.courseId,
+    validationData.selectedDate,//courseDateId,
+    validationData.userId
+  );
+}
 
+//this was an attemp to get the raw body from the request for stripe webhook verification
 @Post('webhooksss')
 @HttpCode(200)
 handleWebhook2(

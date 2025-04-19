@@ -39,19 +39,25 @@ export class EnrollmentsService {
 
     // Check if the course date is full
     if (courseDate.enrolledCount >= courseDate.capacity) {
-      throw new BadRequestException('This course date is at full capacity');
+      //throw new BadRequestException('This course date is at full capacity');
     }
+
+    //TODO: DIASBLE TO ALLOW MULTIDATE ENROLLMENTS (FOR TESTING PURPOSES)
 
     // Check if user is already enrolled
-    const existingEnrollment = await this.enrollmentModel.findOne({
-      user: createEnrollmentDto.user,
-      courseDate: createEnrollmentDto.courseDate,
-      status: { $nin: [EnrollmentStatus.CANCELED, EnrollmentStatus.REFUNDED] }
-    }).exec();
 
-    if (existingEnrollment) {
-      throw new BadRequestException('User is already enrolled in this course date');
-    }
+    // const existingEnrollment = await this.enrollmentModel.findOne({
+    //   user: createEnrollmentDto.user,
+    //   courseDate: createEnrollmentDto.courseDate,
+    //   status: { $nin: [EnrollmentStatus.CANCELED, EnrollmentStatus.REFUNDED] }
+    // }).exec();
+
+    // if (existingEnrollment) {
+    //   throw new BadRequestException('User is already enrolled in this course date');
+    // }
+
+
+
 
     // If payment is provided, check if it exists
     if (createEnrollmentDto.payment) {
@@ -283,5 +289,15 @@ export class EnrollmentsService {
     enrollment.feedbackRating = rating;
 
     return enrollment.save();
+  }
+
+  async isUserEnrolled(courseDateId: string, userId: string): Promise<boolean> {
+    const enrollment = await this.enrollmentModel.findOne({
+      user: userId,
+      courseDate: courseDateId,
+      status: { $nin: [EnrollmentStatus.CANCELED, EnrollmentStatus.REFUNDED] }
+    }).exec();
+    
+    return !!enrollment;
   }
 }
