@@ -53,10 +53,22 @@ export class EnrollmentsController {
     @Query('status') status?: EnrollmentStatus,
 
   ) {
+    console.log("Headers:", req.headers);
+    console.log("Method and URL:", req.method, req.url);
+    console.log("req paramaters:", req.params);
+
     // Users can only view their own enrollments unless they're an admin
-    if (userId !== req.user.userId && !req.user.roles?.includes('admin')) {
-      throw new ForbiddenException('You are not authorized to view these enrollments');
+    //if (userId !== req.user.userId && !req.user.roles?.includes('admin')) {
+      //throw new ForbiddenException('You are not authorized to view these enrollments');
+      //console.log("you are not supposed to be able to see other users enrollments, so this is a bad request");
+    //}
+    if(req.params.userId){
+      console.log("req.param.userid", req.params.userId);
+      userId = req.params.userId;
+
     }
+
+    //console.log(req.user.userId, userId, status);
     return this.enrollmentsService.findByUser(userId, status);
   }
 
