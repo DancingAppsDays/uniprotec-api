@@ -2,7 +2,14 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import * as express from 'express';
 import * as bodyParser from 'body-parser';
+import { randomUUID } from 'crypto';
 
+// Polyfill for environments where crypto.randomUUID is not available
+if (!global.crypto) {
+  global.crypto = {
+    randomUUID: randomUUID,
+  } as Crypto;
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
