@@ -14,6 +14,7 @@ import { EnrollmentsModule } from './enrollment/enrollment.module';
 import { PostponementPolicyModule } from './postponement-policy/postponement-policy.module';
 import { ScheduledTasksModule } from './scheduled-tasks/scheduled-tasks.module';
 import { AdminModule } from './admin/admin/admin.module';
+import { CompanyPurchaseModule } from './company-purchase/company-purchase.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { AdminModule } from './admin/admin/admin.module';
     PostponementPolicyModule,
     ScheduledTasksModule,
     AdminModule,
+    CompanyPurchaseModule,
   ],
   controllers: [AppController],
   providers: [AppService, EmailService],

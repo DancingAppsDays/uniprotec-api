@@ -7,6 +7,7 @@ import { EnrollmentsModule } from '../../enrollment/enrollment.module';
 import { PaymentsModule } from '../../payments/payments.module';
 import { UsersModule } from '../../users/users.module';
 import { EmailModule } from '../../email/email.module';
+import { CompanyPurchaseModule } from 'src/company-purchase/company-purchase.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { EmailModule } from '../../email/email.module';
     PaymentsModule,
     UsersModule,
     EmailModule,
+    CompanyPurchaseModule,
   ],
   controllers: [AdminController],
 })
