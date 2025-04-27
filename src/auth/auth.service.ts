@@ -34,10 +34,51 @@ export class AuthService {
     return null;
   }
 
-  async login(user: any) {
+async login(user: any) {
+ // console.log('User object in login:', user);
+  
+  // Access the actual document data
+  const userData = user._doc || user;
+  //console.log('User roles:', userData.roles);
+  
+  const payload = { 
+    email: userData.email, 
+    sub: userData._id.toString(), // Convert ObjectId to string
+    roles: userData.roles || []
+  };
+  
+  //console.log('JWT payload being signed:', payload);
+  
+  const token = this.jwtService.sign(payload);
+  
+  // Verify what's actually in the token
+  const decoded = this.jwtService.decode(token);
+ // console.log('Decoded JWT token:', decoded);
+  
+  return {
+    token,
+    user: {
+      id: userData._id,
+      email: userData.email,
+      fullName: userData.fullName,
+      phone: userData.phone,
+      roles: userData.roles || []
+    },
+  };
+}
+
+
+  async loginLEGACY(user: any) {
+    console.log('User object in login:', user); // Add this
+    console.log('User roles:', user.roles); // Add this
+    
     const payload = { email: user.email, sub: user._id };
+
     // Make sure we're working with the document data
     const userData = user._doc || user;
+
+    
+
     console.log('Login response:', {
       token: this.jwtService.sign(payload),
       user: {
@@ -45,15 +86,20 @@ export class AuthService {
         email: userData.email,
         fullName: userData.fullName,
         phone: userData.phone,
+        roles: userData.roles || []
       },
     });
+
+
+    
     return {
       token: this.jwtService.sign(payload),
       user: {
         id: userData._id,
         email: userData.email,
         fullName: userData.fullName,
-        phone: userData.phone
+        phone: userData.phone,
+        roles: userData.roles || []
       },
     };
   }
