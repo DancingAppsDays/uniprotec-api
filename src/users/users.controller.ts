@@ -2,6 +2,8 @@
 import { Controller, Post, Body, Get, UseGuards, Request } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RequestPasswordResetDto, ResetPasswordDto } from './dto/reset-password.dto';
+import { UpdatePasswordDto } from './dto/update-password.dto';
 
 @Controller('users')
 export class UsersController {
@@ -26,4 +28,30 @@ export class UsersController {
   getProfile(@Request() req) {
     return req.user;
   }
+
+
+  @Post('password-reset/request')
+async requestPasswordReset(@Body() requestDto: RequestPasswordResetDto) {
+  return this.usersService.requestPasswordReset(requestDto.email);
+}
+
+@Post('password-reset/validate')
+async validateResetToken(@Body() { token }: { token: string }) {
+  return this.usersService.validateResetToken(token);
+}
+
+@Post('password-reset/reset')
+async resetPassword(@Body() resetDto: ResetPasswordDto) {
+  return this.usersService.resetPassword(resetDto.token, resetDto.newPassword);
+}
+
+@Post('password/update')
+@UseGuards(JwtAuthGuard)
+async updatePassword(@Request() req, @Body() updateDto: UpdatePasswordDto) {
+  return this.usersService.updatePassword(
+    req.user.userId, 
+    updateDto.currentPassword, 
+    updateDto.newPassword
+  );
+}
 }
