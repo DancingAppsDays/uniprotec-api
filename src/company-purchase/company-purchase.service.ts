@@ -248,99 +248,107 @@ export class CompanyPurchaseService {
     return companyPurchase;
   }
 
-  private async sendConfirmationEmailToContact(purchase: CompanyPurchase): Promise<void> {
-    try {
-      // Implementation will depend on your email service
-      // For now, we'll log the info that would be sent
-      console.log(`Sending confirmation email to ${purchase.contactEmail} for company purchase ${purchase.requestId}`);
-      
-      // Implement with EmailService when ready
-      /*
-      await this.emailService.sendEmail({
-        to: purchase.contactEmail,
-        subject: `Solicitud de compra recibida - ${purchase.requestId}`,
-        html: `
-          <h1>Hemos recibido tu solicitud de compra</h1>
-          <p>Estimado(a) ${purchase.contactName},</p>
-          <p>Gracias por tu interés en adquirir el curso "${purchase.courseTitle}" para ${purchase.companyName}.</p>
-          <p>Tu solicitud ha sido recibida y uno de nuestros representantes se pondrá en contacto contigo en las próximas 24 horas hábiles para coordinar los detalles del pago y la facturación.</p>
-          <p>Detalles de la solicitud:</p>
-          <ul>
-            <li><strong>Número de solicitud:</strong> ${purchase.requestId}</li>
-            <li><strong>Curso:</strong> ${purchase.courseTitle}</li>
-            <li><strong>Fecha seleccionada:</strong> ${new Date(purchase.selectedDate).toLocaleDateString('es-MX')}</li>
-            <li><strong>Cantidad:</strong> ${purchase.quantity} participantes</li>
-          </ul>
-          <p>Si tienes alguna pregunta, puedes responder a este correo o llamarnos al (55) 1234-5678.</p>
-        `
-      });
-      */
-    } catch (error) {
-      console.error('Error sending confirmation email to contact:', error);
-    }
+  
+private async sendConfirmationEmailToContact(purchase: CompanyPurchase): Promise<void> {
+  try {
+    console.log(`Sending confirmation email to ${purchase.contactEmail} for company purchase ${purchase.requestId}`);
+    
+    await this.emailService.sendCompanyPurchaseConfirmationEmail(
+      purchase.contactEmail,
+      {
+        requestId: purchase.requestId,
+        contactName: purchase.contactName,
+        companyName: purchase.companyName,
+        courseTitle: purchase.courseTitle,
+        selectedDate: purchase.selectedDate,
+        quantity: purchase.quantity
+      }
+    );
+  } catch (error) {
+    console.error('Error sending confirmation email to contact:', error);
   }
+}
 
-  private async notifyAdminsOfNewRequest(purchase: CompanyPurchase): Promise<void> {
-    try {
-      // Implementation will depend on your email service
-      // For now, we'll log the info that would be sent
-      console.log(`Notifying admins about new company purchase request ${purchase.requestId}`);
-      
-      // Implement with EmailService when ready
-      /*
-      await this.emailService.sendEmail({
-        to: 'ventas@academia-uniprotec.com', // Replace with your admin email
-        subject: `Nueva solicitud de compra empresarial - ${purchase.requestId}`,
-        html: `
-          <h1>Nueva solicitud de compra empresarial</h1>
-          <p>Se ha recibido una nueva solicitud de compra empresarial:</p>
-          <ul>
-            <li><strong>Empresa:</strong> ${purchase.companyName}</li>
-            <li><strong>RFC:</strong> ${purchase.rfc}</li>
-            <li><strong>Contacto:</strong> ${purchase.contactName}</li>
-            <li><strong>Email:</strong> ${purchase.contactEmail}</li>
-            <li><strong>Teléfono:</strong> ${purchase.contactPhone}</li>
-            <li><strong>Curso:</strong> ${purchase.courseTitle}</li>
-            <li><strong>Fecha seleccionada:</strong> ${new Date(purchase.selectedDate).toLocaleDateString('es-MX')}</li>
-            <li><strong>Cantidad:</strong> ${purchase.quantity} participantes</li>
-            <li><strong>Información adicional:</strong> ${purchase.additionalInfo || 'N/A'}</li>
-          </ul>
-          <p>Por favor, contacte al cliente lo antes posible para coordinar los detalles del pago y la facturación.</p>
-        `
-      });
-      */
-    } catch (error) {
-      console.error('Error notifying admins of new request:', error);
-    }
-  }
 
-  private async sendContactedEmailToCompany(purchase: CompanyPurchase): Promise<void> {
-    try {
-      console.log(`Sending contacted email to ${purchase.contactEmail} for company purchase ${purchase.requestId}`);
-      
-      // Implement with EmailService when ready
-    } catch (error) {
-      console.error('Error sending contacted email to company:', error);
-    }
+private async notifyAdminsOfNewRequest(purchase: CompanyPurchase): Promise<void> {
+  try {
+    console.log(`Notifying admins about new company purchase request ${purchase.requestId}`);
+    
+    await this.emailService.sendCompanyPurchaseAdminNotificationEmail(
+      {
+        requestId: purchase.requestId,
+        companyName: purchase.companyName,
+        rfc: purchase.rfc,
+        contactName: purchase.contactName,
+        contactEmail: purchase.contactEmail,
+        contactPhone: purchase.contactPhone,
+        courseTitle: purchase.courseTitle,
+        selectedDate: purchase.selectedDate,
+        quantity: purchase.quantity,
+        additionalInfo: purchase.additionalInfo
+      }
+    );
+  } catch (error) {
+    console.error('Error notifying admins of new request:', error);
   }
+}
+private async sendContactedEmailToCompany(purchase: CompanyPurchase): Promise<void> {
+  try {
+    console.log(`Sending contacted email to ${purchase.contactEmail} for company purchase ${purchase.requestId}`);
+    
+    await this.emailService.sendCompanyContactedEmail(
+      purchase.contactEmail,
+      {
+        requestId: purchase.requestId,
+        contactName: purchase.contactName,
+        companyName: purchase.companyName,
+        courseTitle: purchase.courseTitle
+      }
+    );
+  } catch (error) {
+    console.error('Error sending contacted email to company:', error);
+  }
+}
 
-  private async sendPaymentConfirmationToCompany(purchase: CompanyPurchase): Promise<void> {
-    try {
-      console.log(`Sending payment confirmation email to ${purchase.contactEmail} for company purchase ${purchase.requestId}`);
-      
-      // Implement with EmailService when ready
-    } catch (error) {
-      console.error('Error sending payment confirmation to company:', error);
-    }
+private async sendPaymentConfirmationToCompany(purchase: CompanyPurchase): Promise<void> {
+  try {
+    console.log(`Sending payment confirmation email to ${purchase.contactEmail} for company purchase ${purchase.requestId}`);
+    
+    await this.emailService.sendCompanyPaymentConfirmationEmail(
+      purchase.contactEmail,
+      {
+        requestId: purchase.requestId,
+        contactName: purchase.contactName,
+        companyName: purchase.companyName,
+        courseTitle: purchase.courseTitle,
+        selectedDate: purchase.selectedDate,
+        quantity: purchase.quantity,
+        paymentMethod: purchase.paymentMethod,
+        paymentReference: purchase.paymentReference,
+        paymentAmount: purchase.paymentAmount
+      }
+    );
+  } catch (error) {
+    console.error('Error sending payment confirmation to company:', error);
   }
+}
 
-  private async sendCancellationEmailToCompany(purchase: CompanyPurchase, reason: string): Promise<void> {
-    try {
-      console.log(`Sending cancellation email to ${purchase.contactEmail} for company purchase ${purchase.requestId}`);
-      
-      // Implement with EmailService when ready
-    } catch (error) {
-      console.error('Error sending cancellation email to company:', error);
-    }
+private async sendCancellationEmailToCompany(purchase: CompanyPurchase, reason: string): Promise<void> {
+  try {
+    console.log(`Sending cancellation email to ${purchase.contactEmail} for company purchase ${purchase.requestId}`);
+    
+    await this.emailService.sendCompanyCancellationEmail(
+      purchase.contactEmail,
+      {
+        requestId: purchase.requestId,
+        contactName: purchase.contactName,
+        companyName: purchase.companyName,
+        courseTitle: purchase.courseTitle,
+        reason: reason
+      }
+    );
+  } catch (error) {
+    console.error('Error sending cancellation email to company:', error);
   }
+}
 }

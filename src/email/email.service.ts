@@ -194,4 +194,218 @@ export class EmailService {
       }
     }
   }
+
+
+
+
+
+
+
+
+  // Add these methods to src/email/email.service.ts
+
+// Company purchase confirmation to contact
+async sendCompanyPurchaseConfirmationEmail(
+  to: string,
+  purchaseData: {
+    requestId: string;
+    contactName: string;
+    companyName: string;
+    courseTitle: string;
+    selectedDate: Date;
+    quantity: number;
+  }
+): Promise<any> {
+  try {
+    const info = await this.transporter.sendMail({
+      from: `"Academia Uniprotec" <${this.configService.get('EMAIL_FROM') || 'noreply@academia-uniprotec.com'}>`,
+      to,
+      subject: `Solicitud de compra recibida - ${purchaseData.requestId}`,
+      html: `
+        <h1>Hemos recibido tu solicitud de compra</h1>
+        <p>Estimado(a) ${purchaseData.contactName},</p>
+        <p>Gracias por tu interés en adquirir el curso "${purchaseData.courseTitle}" para ${purchaseData.companyName}.</p>
+        <p>Tu solicitud ha sido recibida y uno de nuestros representantes se pondrá en contacto contigo en las próximas 24 horas hábiles para coordinar los detalles del pago y la facturación.</p>
+        <p>Detalles de la solicitud:</p>
+        <ul>
+          <li><strong>Número de solicitud:</strong> ${purchaseData.requestId}</li>
+          <li><strong>Curso:</strong> ${purchaseData.courseTitle}</li>
+          <li><strong>Fecha seleccionada:</strong> ${new Date(purchaseData.selectedDate).toLocaleDateString('es-MX')}</li>
+          <li><strong>Cantidad:</strong> ${purchaseData.quantity} participantes</li>
+        </ul>
+        <p>Si tienes alguna pregunta, puedes responder a este correo o llamarnos al (55) 1234-5678.</p>
+      `,
+    });
+    
+    this.logEmailResult(info);
+    return info;
+  } catch (error) {
+    console.error(`Failed to send company purchase confirmation email to ${to}:`, error);
+    throw error;
+  }
+}
+
+// Admin notification of new company purchase
+async sendCompanyPurchaseAdminNotificationEmail(
+  purchaseData: {
+    requestId: string;
+    companyName: string;
+    rfc: string;
+    contactName: string;
+    contactEmail: string;
+    contactPhone: string;
+    courseTitle: string;
+    selectedDate: Date;
+    quantity: number;
+    additionalInfo?: string;
+  }
+): Promise<any> {
+  try {
+    const adminEmail = this.configService.get('ADMIN_EMAIL') || 'ventas@academia-uniprotec.com';
+    
+    const info = await this.transporter.sendMail({
+      from: `"Academia Uniprotec" <${this.configService.get('EMAIL_FROM') || 'noreply@academia-uniprotec.com'}>`,
+      to: adminEmail,
+      subject: `Nueva solicitud de compra empresarial - ${purchaseData.requestId}`,
+      html: `
+        <h1>Nueva solicitud de compra empresarial</h1>
+        <p>Se ha recibido una nueva solicitud de compra empresarial:</p>
+        <ul>
+          <li><strong>Empresa:</strong> ${purchaseData.companyName}</li>
+          <li><strong>RFC:</strong> ${purchaseData.rfc}</li>
+          <li><strong>Contacto:</strong> ${purchaseData.contactName}</li>
+          <li><strong>Email:</strong> ${purchaseData.contactEmail}</li>
+          <li><strong>Teléfono:</strong> ${purchaseData.contactPhone}</li>
+          <li><strong>Curso:</strong> ${purchaseData.courseTitle}</li>
+          <li><strong>Fecha seleccionada:</strong> ${new Date(purchaseData.selectedDate).toLocaleDateString('es-MX')}</li>
+          <li><strong>Cantidad:</strong> ${purchaseData.quantity} participantes</li>
+          <li><strong>Información adicional:</strong> ${purchaseData.additionalInfo || 'N/A'}</li>
+        </ul>
+        <p>Por favor, contacte al cliente lo antes posible para coordinar los detalles del pago y la facturación.</p>
+      `,
+    });
+    
+    this.logEmailResult(info);
+    return info;
+  } catch (error) {
+    console.error('Failed to send admin notification email:', error);
+    throw error;
+  }
+}
+
+// Company contacted notification
+async sendCompanyContactedEmail(
+  to: string,
+  purchaseData: {
+    requestId: string;
+    contactName: string;
+    companyName: string;
+    courseTitle: string;
+  }
+): Promise<any> {
+  try {
+    const info = await this.transporter.sendMail({
+      from: `"Academia Uniprotec" <${this.configService.get('EMAIL_FROM') || 'noreply@academia-uniprotec.com'}>`,
+      to,
+      subject: `Actualización de tu solicitud - ${purchaseData.requestId}`,
+      html: `
+        <h1>Estamos procesando tu solicitud</h1>
+        <p>Estimado(a) ${purchaseData.contactName},</p>
+        <p>Queremos informarte que uno de nuestros representantes está procesando tu solicitud para el curso "${purchaseData.courseTitle}" para ${purchaseData.companyName}.</p>
+        <p>Te contactaremos en breve para proporcionarte detalles sobre el pago y resolver cualquier pregunta que puedas tener.</p>
+        <p>Número de referencia: ${purchaseData.requestId}</p>
+        <p>Gracias por elegir Academia Uniprotec para la capacitación de tu empresa.</p>
+      `,
+    });
+    
+    this.logEmailResult(info);
+    return info;
+  } catch (error) {
+    console.error(`Failed to send company contacted email to ${to}:`, error);
+    throw error;
+  }
+}
+
+// Payment confirmation email
+async sendCompanyPaymentConfirmationEmail(
+  to: string,
+  purchaseData: {
+    requestId: string;
+    contactName: string;
+    companyName: string;
+    courseTitle: string;
+    selectedDate: Date;
+    quantity: number;
+    paymentMethod?: string;
+    paymentReference?: string;
+    paymentAmount?: number;
+  }
+): Promise<any> {
+  try {
+    const info = await this.transporter.sendMail({
+      from: `"Academia Uniprotec" <${this.configService.get('EMAIL_FROM') || 'noreply@academia-uniprotec.com'}>`,
+      to,
+      subject: `Confirmación de pago - ${purchaseData.requestId}`,
+      html: `
+        <h1>¡Hemos recibido tu pago!</h1>
+        <p>Estimado(a) ${purchaseData.contactName},</p>
+        <p>Te confirmamos que hemos recibido el pago para el curso "${purchaseData.courseTitle}" para ${purchaseData.companyName}.</p>
+        <p><strong>Detalles del pago:</strong></p>
+        <ul>
+          <li><strong>Método de pago:</strong> ${purchaseData.paymentMethod || 'N/A'}</li>
+          <li><strong>Referencia:</strong> ${purchaseData.paymentReference || 'N/A'}</li>
+          <li><strong>Cantidad:</strong> $${purchaseData.paymentAmount?.toFixed(2) || 'N/A'} MXN</li>
+        </ul>
+        <p><strong>Detalles del curso:</strong></p>
+        <ul>
+          <li><strong>Curso:</strong> ${purchaseData.courseTitle}</li>
+          <li><strong>Fecha:</strong> ${new Date(purchaseData.selectedDate).toLocaleDateString('es-MX')}</li>
+          <li><strong>Cantidad de participantes:</strong> ${purchaseData.quantity}</li>
+        </ul>
+        <p>Ahora puedes comenzar a registrar a los participantes. Nuestro equipo se pondrá en contacto contigo para ayudarte con este proceso.</p>
+        <p>Gracias por tu confianza en Academia Uniprotec.</p>
+      `,
+    });
+    
+    this.logEmailResult(info);
+    return info;
+  } catch (error) {
+    console.error(`Failed to send payment confirmation email to ${to}:`, error);
+    throw error;
+  }
+}
+
+// Cancellation email
+async sendCompanyCancellationEmail(
+  to: string,
+  purchaseData: {
+    requestId: string;
+    contactName: string;
+    companyName: string;
+    courseTitle: string;
+    reason: string;
+  }
+): Promise<any> {
+  try {
+    const info = await this.transporter.sendMail({
+      from: `"Academia Uniprotec" <${this.configService.get('EMAIL_FROM') || 'noreply@academia-uniprotec.com'}>`,
+      to,
+      subject: `Solicitud cancelada - ${purchaseData.requestId}`,
+      html: `
+        <h1>Tu solicitud ha sido cancelada</h1>
+        <p>Estimado(a) ${purchaseData.contactName},</p>
+        <p>Te informamos que la solicitud de compra del curso "${purchaseData.courseTitle}" para ${purchaseData.companyName} ha sido cancelada.</p>
+        <p><strong>Motivo de la cancelación:</strong> ${purchaseData.reason}</p>
+        <p>Si tienes alguna pregunta o deseas realizar una nueva solicitud, no dudes en contactarnos.</p>
+        <p>Lamentamos cualquier inconveniente que esto pueda causar.</p>
+      `,
+    });
+    
+    this.logEmailResult(info);
+    return info;
+  } catch (error) {
+    console.error(`Failed to send cancellation email to ${to}:`, error);
+    throw error;
+  }
+}
 }
