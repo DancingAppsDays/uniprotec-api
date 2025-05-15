@@ -218,7 +218,7 @@ async sendCompanyPurchaseConfirmationEmail(
 ): Promise<any> {
   try {
     const info = await this.transporter.sendMail({
-      from: `"Academia Uniprotec" <${this.configService.get('EMAIL_FROM') || 'noreply@academia-uniprotec.com'}>`,
+      from: `"Academia Uniprotec" <${this.configService.get('EMAIL_FROM') || 'noreply@academia-uniprotec.net'}>`,
       to,
       subject: `Solicitud de compra recibida - ${purchaseData.requestId}`,
       html: `
@@ -233,7 +233,7 @@ async sendCompanyPurchaseConfirmationEmail(
           <li><strong>Fecha seleccionada:</strong> ${new Date(purchaseData.selectedDate).toLocaleDateString('es-MX')}</li>
           <li><strong>Cantidad:</strong> ${purchaseData.quantity} participantes</li>
         </ul>
-        <p>Si tienes alguna pregunta, puedes responder a este correo o llamarnos al (55) 1234-5678.</p>
+        <p>Si tienes alguna pregunta, puedes responder a este correo o llamarnos al (52) 44 2459 6476.</p>
       `,
     });
     
@@ -261,10 +261,10 @@ async sendCompanyPurchaseAdminNotificationEmail(
   }
 ): Promise<any> {
   try {
-    const adminEmail = this.configService.get('ADMIN_EMAIL') || 'ventas@academia-uniprotec.com';
+    const adminEmail = this.configService.get('ADMIN_EMAIL') || 'ventas@uniprotec.net';
     
     const info = await this.transporter.sendMail({
-      from: `"Academia Uniprotec" <${this.configService.get('EMAIL_FROM') || 'noreply@academia-uniprotec.com'}>`,
+      from: `"Academia Uniprotec" <${this.configService.get('EMAIL_FROM') || 'noreply@academia-uniprotec.net'}>`,
       to: adminEmail,
       subject: `Nueva solicitud de compra empresarial - ${purchaseData.requestId}`,
       html: `
