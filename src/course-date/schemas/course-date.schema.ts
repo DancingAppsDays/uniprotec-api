@@ -59,6 +59,9 @@ export class CourseDate {
     @Prop()
     meetingUrl: string;
 
+    @Prop()
+    whatsappGroup: string;
+
     @Prop({ required: true, enum: CourseDateStatus, default: CourseDateStatus.SCHEDULED })
     status: CourseDateStatus;
 

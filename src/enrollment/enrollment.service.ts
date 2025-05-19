@@ -83,8 +83,9 @@ export class EnrollmentsService {
         title: courseDate.course.title,
         selectedDate: courseDate.startDate,
         zoomLink: courseDate.meetingUrl || '',
-        zoomMeetingId: courseDate.zoomMeetingId || '',
-        zoomPassword: courseDate.zoomPassword || '',
+        whatsappGroup: courseDate.whatsappGroup || '',
+       // zoomMeetingId: courseDate.zoomMeetingId || '',
+       // zoomPassword: courseDate.zoomPassword || '',
         instructor: courseDate.instructor.name
       };
 
@@ -226,8 +227,9 @@ export class EnrollmentsService {
         title: enrollment.courseDate.course.title,
         selectedDate: enrollment.courseDate.startDate,
         zoomLink: enrollment.courseDate.meetingUrl || '',
-        zoomMeetingId: enrollment.courseDate.zoomMeetingId || '',
-        zoomPassword: enrollment.courseDate.zoomPassword || '',
+        whatsappGroup: enrollment.courseDate.whatsappGroup || '',
+       // zoomMeetingId: enrollment.courseDate.zoomMeetingId || '',
+       // zoomPassword: enrollment.courseDate.zoomPassword || '',
         instructor: enrollment.courseDate.instructor.name
       };
 

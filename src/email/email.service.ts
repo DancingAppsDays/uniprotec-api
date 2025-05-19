@@ -78,12 +78,14 @@ export class EmailService {
           <p>Aquí tienes los detalles para acceder a tu curso:</p>
           <p><strong>Curso:</strong> ${courseData.title}</p>
           <p><strong>Fecha:</strong> ${new Date(courseData.selectedDate).toLocaleDateString('es-MX')}</p>
+           <p><strong>Hora:</strong> ${new Date(courseData.selectedDate).toLocaleTimeString('es-MX')}</p>
           <p><strong>Enlace Zoom:</strong> <a href="${courseData.zoomLink}">${courseData.zoomLink}</a></p>
-          <p><strong>ID de la reunión:</strong> ${courseData.zoomMeetingId}</p>
-          <p><strong>Contraseña:</strong> ${courseData.zoomPassword}</p>
+          <p><strong>Grupo de WhatsApp:</strong> <a href="${courseData.whatsappGroup}">${courseData.whatsappGroup}</a></p>
+          
           <p>Por favor guarda esta información. También puedes acceder a estos datos en tu área de cliente.</p>
         `,
       });
+      
       
       this.logEmailResult(info);
       return info;
@@ -103,9 +105,9 @@ export class EmailService {
           <h1>Recordatorio de curso próximo</h1>
           <p>Tu curso "${courseData.title}" comienza en ${daysUntil} días.</p>
           <p><strong>Fecha:</strong> ${new Date(courseData.selectedDate).toLocaleDateString('es-MX')}</p>
-          <p><strong>Enlace Zoom:</strong> <a href="${courseData.zoomLink}">${courseData.zoomLink}</a></p>
-          <p><strong>ID de la reunión:</strong> ${courseData.zoomMeetingId}</p>
-          <p><strong>Contraseña:</strong> ${courseData.zoomPassword}</p>
+          <p><strong>Hora:</strong> ${new Date(courseData.selectedDate).toLocaleTimeString('es-MX')}</p>
+          <p><strong>Enlace Zoom:</strong> <a href="${courseData.zoomLink}">${courseData.zoomLink}</a></p>          
+          <p><strong>Grupo de WhatsApp:</strong> <a href="${courseData.whatsappGroup}">${courseData.whatsappGroup}</a></p>
         `,
       });
       
