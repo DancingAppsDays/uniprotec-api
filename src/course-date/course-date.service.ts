@@ -453,4 +453,31 @@ export class CourseDatesService {
     // This would send warnings about possible postponement due to low enrollment
   }
 
+  async reserveSeats(courseDateId: string, seatCount: number): Promise<CourseDate> {
+  const courseDate = await this.courseDateModel.findById(courseDateId).exec();
+  
+  if (!courseDate) {
+    throw new NotFoundException(`Course date with ID ${courseDateId} not found`);
+  }
+  
+  // Check if there's enough capacity
+  if (courseDate.enrolledCount + seatCount > courseDate.capacity) {
+    throw new BadRequestException(
+      `Cannot reserve ${seatCount} seats. Course date only has ${courseDate.capacity - courseDate.enrolledCount} seats available.`
+    );
+  }
+  
+  // Increase enrolled count to reserve seats
+  courseDate.enrolledCount += seatCount;
+  
+  // If enrollment meets minimum requirements and course was scheduled, mark as confirmed
+  if (courseDate.status === CourseDateStatus.SCHEDULED &&
+      courseDate.enrolledCount >= courseDate.minimumRequired) {
+    courseDate.status = CourseDateStatus.CONFIRMED;
+  }
+  
+  // Save and return updated course date
+  return courseDate.save();
+}
+
 }

@@ -171,6 +171,24 @@ async getCompanyPurchase(@Param('id') id: string, @Request() req) {
   return this.companyPurchaseService.findOne(id);
 }
 
+
+@Get('company-purchases/:id/enrollments')
+async getCompanyPurchaseEnrollments(@Param('id') id: string, @Request() req) {
+  this.checkAdminAccess(req);
+  
+  // Get the company purchase to get enrollment IDs
+  const purchase = await this.companyPurchaseService.findOne(id);
+  
+  if (!purchase.enrollmentIds || purchase.enrollmentIds.length === 0) {
+    return [];
+  }
+  
+  // Find all enrollments by IDs
+  const enrollments = await this.enrollmentsService.findByIds(purchase.enrollmentIds);
+  
+  return enrollments;
+}
+
 @Post('company-purchases/:id/status')
 async updateCompanyPurchaseStatus(
   @Param('id') id: string,
@@ -260,6 +278,10 @@ async cancelCompanyPurchase(
   this.checkAdminAccess(req);
   return this.companyPurchaseService.cancel(id, data.reason);
 }
+
+
+
+
 
 
 

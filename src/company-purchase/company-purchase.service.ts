@@ -10,6 +10,8 @@ import { EmailService } from '../email/email.service';
 import { randomUUID } from 'crypto';
 
 import axios from 'axios';
+import { CourseDatesService } from 'src/course-date/course-date.service';
+import { CourseDate } from 'src/course-date/schemas/course-date.schema';
 
 
 @Injectable()
@@ -18,6 +20,7 @@ export class CompanyPurchaseService {
     @InjectModel(CompanyPurchase.name) private companyPurchaseModel: Model<CompanyPurchaseDocument>,
     private coursesService: CoursesService,
     private emailService: EmailService,
+     private courseDateService: CourseDatesService,
   ) {}
 
   async create(createCompanyPurchaseDto: CreateCompanyPurchaseDto): Promise<CompanyPurchase> {
@@ -134,6 +137,8 @@ export class CompanyPurchaseService {
     return companyPurchase;
   }
 
+
+  /*
   async update(id: string, updateCompanyPurchaseDto: UpdateCompanyPurchaseDto): Promise<CompanyPurchase> {
     const companyPurchase = await this.companyPurchaseModel.findByIdAndUpdate(
       id,
@@ -146,41 +151,114 @@ export class CompanyPurchaseService {
     }
 
     return companyPurchase;
-  }
+  }*/
 
-  async updateStatus(id: string, status: CompanyPurchaseStatus, notes?: string): Promise<CompanyPurchase> {
-    const updates: any = { status };
+    async update(id: string, updateCompanyPurchaseDto: UpdateCompanyPurchaseDto): Promise<CompanyPurchase> {
+  // First find the company purchase to check if we're updating quantity
+  if (updateCompanyPurchaseDto.quantity !== undefined) {
+    const currentPurchase = await this.companyPurchaseModel.findById(id).exec();
     
-    if (notes) {
-      updates.adminNotes = notes;
-    }
-    
-    // If marking as paid, add payment date
-    if (status === CompanyPurchaseStatus.PAID) {
-      updates.paymentDate = new Date();
-    }
-
-    const companyPurchase = await this.companyPurchaseModel.findByIdAndUpdate(
-      id,
-      updates,
-      { new: true }
-    ).exec();
-
-    if (!companyPurchase) {
+    if (!currentPurchase) {
       throw new NotFoundException(`Company purchase with ID ${id} not found`);
     }
-
-    // If status is changing to "contacted", send email to the company
-    if (status === CompanyPurchaseStatus.CONTACTED) {
-      await this.sendContactedEmailToCompany(companyPurchase);
+    
+    // Check if the new quantity is less than current enrollment count
+    if (updateCompanyPurchaseDto.quantity < currentPurchase.enrollmentIds.length) {
+      throw new BadRequestException(
+        `Cannot reduce quantity to ${updateCompanyPurchaseDto.quantity} because there are already ${currentPurchase.enrollmentIds.length} enrollments.`
+      );
     }
     
-    // If status is changing to "paid", send confirmation to the company
-    if (status === CompanyPurchaseStatus.PAID) {
-      await this.sendPaymentConfirmationToCompany(companyPurchase);
+    // Check if status should be changed to completed
+    if (updateCompanyPurchaseDto.quantity === currentPurchase.enrollmentIds.length && 
+        currentPurchase.status === CompanyPurchaseStatus.PAID) {
+      updateCompanyPurchaseDto.status = CompanyPurchaseStatus.COMPLETED;
     }
+  }
+  
+  const companyPurchase = await this.companyPurchaseModel.findByIdAndUpdate(
+    id,
+    updateCompanyPurchaseDto,
+    { new: true }
+  ).exec();
 
-    return companyPurchase;
+  if (!companyPurchase) {
+    throw new NotFoundException(`Company purchase with ID ${id} not found`);
+  }
+
+  return companyPurchase;
+}
+
+async updateStatus(id: string, status: CompanyPurchaseStatus, notes?: string): Promise<CompanyPurchase> {
+  const updates: any = { status };
+  
+  if (notes) {
+    updates.adminNotes = notes;
+  }
+  
+  const currentPurchase = await this.companyPurchaseModel.findById(id).exec();
+  
+  if (!currentPurchase) {
+    throw new NotFoundException(`Company purchase with ID ${id} not found`);
+  }
+  
+  // If marking as paid and it wasn't already paid, reserve the seats in the course date
+  if (status === CompanyPurchaseStatus.PAID && 
+      currentPurchase.status !== CompanyPurchaseStatus.PAID && 
+      currentPurchase.status !== CompanyPurchaseStatus.COMPLETED) {
+      
+    updates.paymentDate = new Date();
+    
+    // Find the course date that matches the selectedDate
+    const courseDates = await this.courseDateService.findByCourse(currentPurchase.course.toString());
+    
+    let targetCourseDate : CourseDate | null = null;
+    for (const courseDate of courseDates) {
+      const courseDateStart = new Date(courseDate.startDate);
+      const purchaseDate = new Date(currentPurchase.selectedDate);
+      
+      // Compare dates without time component
+      if (courseDateStart.toDateString() === purchaseDate.toDateString()) {
+        targetCourseDate = courseDate;
+        break;
+      }
+    }
+    
+    if (!targetCourseDate) {
+      throw new NotFoundException(`Could not find course date matching selected date ${currentPurchase.selectedDate}`);
+    }
+    
+    // Update the course date to reserve seats by increasing enrolledCount
+    await this.courseDateService.reserveSeats(targetCourseDate._id, currentPurchase.quantity);
+    
+    // Store the course date ID in the purchase metadata for reference
+    updates.metadata = {
+      ...currentPurchase.metadata,
+      courseDateId: targetCourseDate._id,
+      reservedSeats: currentPurchase.quantity
+    };
+  }
+  
+  const companyPurchase = await this.companyPurchaseModel.findByIdAndUpdate(
+    id,
+    updates,
+    { new: true }
+  ).exec();
+
+  if (!companyPurchase) {
+    throw new NotFoundException(`Company purchase with ID ${id} not found`);
+  }
+
+  // Send appropriate notifications based on status change
+  if (status === CompanyPurchaseStatus.CONTACTED) {
+    await this.sendContactedEmailToCompany(companyPurchase);
+  }
+  
+  if (status === CompanyPurchaseStatus.PAID) {
+    await this.sendPaymentConfirmationToCompany(companyPurchase);
+  }
+
+  return companyPurchase;
   }
 
   async recordPayment(

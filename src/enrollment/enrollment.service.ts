@@ -302,4 +302,18 @@ export class EnrollmentsService {
     
     return !!enrollment;
   }
+
+  async findByIds(ids: string[]): Promise<Enrollment[]> {
+  return this.enrollmentModel.find({
+    _id: { $in: ids }
+  })
+    .populate('user')
+    .populate({
+      path: 'courseDate',
+      populate: { path: 'course' }
+    })
+    .populate('payment')
+    .sort({ createdAt: -1 })
+    .exec();
+}
 }
