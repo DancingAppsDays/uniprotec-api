@@ -69,7 +69,10 @@ export class AdminController {
       const daysUntil = Math.ceil((new Date(date.startDate).getTime() - now.getTime()) / (86400000));
 
       // Get policy for this course
-      const policy = date.course.postponementPolicy || { minimumRequired: 6, deadlineDays: 2 };
+
+      //this wasq added to avoid errors when the course does not have a policy
+      //specicially orpahned records of erased courses!!
+      const policy = date.course?.postponementPolicy || { minimumRequired: 6, deadlineDays: 2 };
 
       // Check if this course is at risk (close to deadline and insufficient enrollment)
       return daysUntil <= policy.deadlineDays && date.enrolledCount < policy.minimumRequired;
