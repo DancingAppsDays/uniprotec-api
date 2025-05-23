@@ -9,7 +9,8 @@ import {
   Query,
   Request,
   ForbiddenException,
-  BadRequestException
+  BadRequestException,
+  Patch
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CourseDatesService } from '../../course-date/course-date.service';
@@ -187,6 +188,16 @@ async getCompanyPurchaseEnrollments(@Param('id') id: string, @Request() req) {
   const enrollments = await this.enrollmentsService.findByIds(purchase.enrollmentIds);
   
   return enrollments;
+}
+
+@Patch('company-purchases/:id')
+async updateCompanyPurchase(
+  @Param('id') id: string,
+  @Body() updateData: { quantity?: number },
+  @Request() req
+) {
+  this.checkAdminAccess(req);
+  return this.companyPurchaseService.update(id, updateData);
 }
 
 @Post('company-purchases/:id/status')
