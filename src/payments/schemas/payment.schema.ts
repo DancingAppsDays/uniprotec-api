@@ -8,42 +8,45 @@ export type PaymentDocument = Payment & Document;
 @Schema({ timestamps: true })
 export class Payment {
 
-    // @Prop({ type: String })
-    // _id: string;
+  // @Prop({ type: String })
+  // _id: string;
 
-    @Prop({ type: String })
-    userId?: string;
+  @Prop({ type: String })
+  userId?: string;
 
-    @Prop({ required: true })
-    amount: number;
+  @Prop({ required: true })
+  amount: number;
 
-    @Prop({ default: 'mxn' })
-    currency: string;
+  @Prop({ default: 'mxn' })
+  currency: string;
 
-    @Prop({ required: true })
-    status: string;
+  @Prop({ required: true })
+  status: string;
 
-     // Make this optional when using PaymentIntent
+  // Make this optional when using PaymentIntent
   @Prop({ required: false })  // Change this from required: true to required: false
   stripeSessionId?: string;
 
-    @Prop()
-    stripePaymentIntentId?: string;
+  @Prop()
+  stripePaymentIntentId?: string;
 
-    @Prop()
-    customerEmail?: string;
+  @Prop()
+  customerEmail?: string;
 
-    @Prop()
-    customerName?: string;
+  @Prop()
+  customerPhone?: string;
 
-    @Prop({ type: Date })
-    selectedDate?: Date;
+  @Prop()
+  customerName?: string;
 
-    @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Course' })
-    course: Course;
+  @Prop({ type: Date })
+  selectedDate?: Date;
 
-    @Prop({ type: Object })
-    metadata?: Record<string, any>;
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Course' })
+  course: Course;
+
+  @Prop({ type: Object })
+  metadata?: Record<string, any>;
 }
 
 export const PaymentSchema = SchemaFactory.createForClass(Payment);

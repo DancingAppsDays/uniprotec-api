@@ -57,6 +57,7 @@ export class PaymentsService {
         status: 'pending',
         stripePaymentIntentId: paymentIntent.id,
         customerEmail: data.customerEmail,
+        customerPhone: data.customerPhone,
         selectedDate: data.selectedDate,
         course: data.courseId,
         userId: data.userId,
@@ -445,89 +446,89 @@ export class PaymentsService {
 
 
 
-/*
-  private async handleCompletedCheckoutLEGACY(session: Stripe.Checkout.Session) {
-    const payment = await this.paymentModel.findOne({ stripeSessionId: session.id });
-    
-    if (payment) {
-      payment.status = 'completed';
-      payment.stripePaymentIntentId = session.payment_intent as string;
-      await payment.save();
-
-      // Create enrollment if this payment was for a course
-      if (payment.course && payment.selectedDate && payment.userId) {
-        try {
-          // Find the appropriate course date based on the selected date
-          const courseDates = await this.courseDatesService.findByCourse(payment.course.toString());
-
-          let targetCourseDate;
-          const selectedDate = new Date(payment.selectedDate);
-
-          // Find the course date that matches the selected date
-          for (const courseDate of courseDates) {
-            const courseDateStart = new Date(courseDate.startDate);
-
-            // Compare dates without time component
-            if (
-              courseDateStart.getFullYear() === selectedDate.getFullYear() &&
-              courseDateStart.getMonth() === selectedDate.getMonth() &&
-              courseDateStart.getDate() === selectedDate.getDate()
-            ) {
-              targetCourseDate = courseDate;
-              break;
-            }
-          }
-
-          if (targetCourseDate) {
-            // Create enrollment
-            await this.enrollmentsService.create({
-              user: payment.userId.toString(),
-              courseDate: targetCourseDate.id,
-              status: EnrollmentStatus.CONFIRMED,
-              payment: payment._id!.toString(),
-              metadata: {
-                paymentMethod: 'stripe',
-                paymentSessionId: session.id,
-                paymentIntentId: session.payment_intent
+  /*
+    private async handleCompletedCheckoutLEGACY(session: Stripe.Checkout.Session) {
+      const payment = await this.paymentModel.findOne({ stripeSessionId: session.id });
+      
+      if (payment) {
+        payment.status = 'completed';
+        payment.stripePaymentIntentId = session.payment_intent as string;
+        await payment.save();
+  
+        // Create enrollment if this payment was for a course
+        if (payment.course && payment.selectedDate && payment.userId) {
+          try {
+            // Find the appropriate course date based on the selected date
+            const courseDates = await this.courseDatesService.findByCourse(payment.course.toString());
+  
+            let targetCourseDate;
+            const selectedDate = new Date(payment.selectedDate);
+  
+            // Find the course date that matches the selected date
+            for (const courseDate of courseDates) {
+              const courseDateStart = new Date(courseDate.startDate);
+  
+              // Compare dates without time component
+              if (
+                courseDateStart.getFullYear() === selectedDate.getFullYear() &&
+                courseDateStart.getMonth() === selectedDate.getMonth() &&
+                courseDateStart.getDate() === selectedDate.getDate()
+              ) {
+                targetCourseDate = courseDate;
+                break;
               }
-            });
-
-            console.log(`Enrollment created for user ${payment.userId} in course date ${targetCourseDate.id}`);
-          } else {
-            console.error('No matching course date found for the selected date:', payment.selectedDate);
+            }
+  
+            if (targetCourseDate) {
+              // Create enrollment
+              await this.enrollmentsService.create({
+                user: payment.userId.toString(),
+                courseDate: targetCourseDate.id,
+                status: EnrollmentStatus.CONFIRMED,
+                payment: payment._id!.toString(),
+                metadata: {
+                  paymentMethod: 'stripe',
+                  paymentSessionId: session.id,
+                  paymentIntentId: session.payment_intent
+                }
+              });
+  
+              console.log(`Enrollment created for user ${payment.userId} in course date ${targetCourseDate.id}`);
+            } else {
+              console.error('No matching course date found for the selected date:', payment.selectedDate);
+            }
+          } catch (error) {
+            console.error('Error creating enrollment:', error);
           }
-        } catch (error) {
-          console.error('Error creating enrollment:', error);
+        }
+  
+        // Send course access email
+        if (payment.customerEmail) {
+          try {
+            // Try to get course details and send email
+            const courseDates = await this.courseDatesService.findByCourse(payment.course.toString());
+  
+            if (courseDates && courseDates.length > 0) {
+              // Use the first course date for now (this should be improved to find the right one)
+              const courseDate = courseDates[0];
+  
+              // For Zoom data - in a real implementation, you'd get this from the courseDate
+              const zoomData = {
+                title: payment.metadata?.courseTitle || 'Course',
+                selectedDate: payment.selectedDate,
+                zoomLink: courseDate.meetingUrl || 'https://zoom.us/meeting-link',
+                zoomMeetingId: courseDate.zoomMeetingId || '123 456 7890',
+                zoomPassword: courseDate.zoomPassword || 'password'
+              };
+  
+              await this.emailService.sendCourseAccessEmail(payment.customerEmail, zoomData);
+            }
+          } catch (error) {
+            console.error('Error sending course access email:', error);
+          }
         }
       }
-
-      // Send course access email
-      if (payment.customerEmail) {
-        try {
-          // Try to get course details and send email
-          const courseDates = await this.courseDatesService.findByCourse(payment.course.toString());
-
-          if (courseDates && courseDates.length > 0) {
-            // Use the first course date for now (this should be improved to find the right one)
-            const courseDate = courseDates[0];
-
-            // For Zoom data - in a real implementation, you'd get this from the courseDate
-            const zoomData = {
-              title: payment.metadata?.courseTitle || 'Course',
-              selectedDate: payment.selectedDate,
-              zoomLink: courseDate.meetingUrl || 'https://zoom.us/meeting-link',
-              zoomMeetingId: courseDate.zoomMeetingId || '123 456 7890',
-              zoomPassword: courseDate.zoomPassword || 'password'
-            };
-
-            await this.emailService.sendCourseAccessEmail(payment.customerEmail, zoomData);
-          }
-        } catch (error) {
-          console.error('Error sending course access email:', error);
-        }
-      }
-    }
-  }*/
+    }*/
 
   private async handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     console.log("Starting handleSuccessfulPayment with payment intent ID:", paymentIntent.id);
