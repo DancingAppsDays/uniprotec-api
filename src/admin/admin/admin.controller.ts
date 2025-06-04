@@ -9,7 +9,8 @@ import {
   Query,
   Request,
   ForbiddenException,
-  BadRequestException
+  BadRequestException,
+  Patch
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CourseDatesService } from '../../course-date/course-date.service';
@@ -68,7 +69,10 @@ export class AdminController {
       const daysUntil = Math.ceil((new Date(date.startDate).getTime() - now.getTime()) / (86400000));
 
       // Get policy for this course
-      const policy = date.course.postponementPolicy || { minimumRequired: 6, deadlineDays: 2 };
+
+      //this wasq added to avoid errors when the course does not have a policy
+      //specicially orpahned records of erased courses!!
+      const policy = date.course?.postponementPolicy || { minimumRequired: 6, deadlineDays: 2 };
 
       // Check if this course is at risk (close to deadline and insufficient enrollment)
       return daysUntil <= policy.deadlineDays && date.enrolledCount < policy.minimumRequired;
@@ -171,6 +175,34 @@ async getCompanyPurchase(@Param('id') id: string, @Request() req) {
   return this.companyPurchaseService.findOne(id);
 }
 
+
+@Get('company-purchases/:id/enrollments')
+async getCompanyPurchaseEnrollments(@Param('id') id: string, @Request() req) {
+  this.checkAdminAccess(req);
+  
+  // Get the company purchase to get enrollment IDs
+  const purchase = await this.companyPurchaseService.findOne(id);
+  
+  if (!purchase.enrollmentIds || purchase.enrollmentIds.length === 0) {
+    return [];
+  }
+  
+  // Find all enrollments by IDs
+  const enrollments = await this.enrollmentsService.findByIds(purchase.enrollmentIds);
+  
+  return enrollments;
+}
+
+@Patch('company-purchases/:id')
+async updateCompanyPurchase(
+  @Param('id') id: string,
+  @Body() updateData: { quantity?: number },
+  @Request() req
+) {
+  this.checkAdminAccess(req);
+  return this.companyPurchaseService.update(id, updateData);
+}
+
 @Post('company-purchases/:id/status')
 async updateCompanyPurchaseStatus(
   @Param('id') id: string,
@@ -260,6 +292,10 @@ async cancelCompanyPurchase(
   this.checkAdminAccess(req);
   return this.companyPurchaseService.cancel(id, data.reason);
 }
+
+
+
+
 
 
 

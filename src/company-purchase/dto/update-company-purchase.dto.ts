@@ -31,4 +31,8 @@ export class UpdateCompanyPurchaseDto extends PartialType(CreateCompanyPurchaseD
   @Type(() => Date)
   @IsOptional()
   paymentDate?: Date;
+
+   
+  @IsOptional()
+   metadata?: Record<string, any>; 
 }

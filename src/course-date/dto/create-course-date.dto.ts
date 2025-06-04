@@ -55,6 +55,10 @@ export class CreateCourseDateDto {
     @IsOptional()
     meetingUrl?: string;
 
+     @IsString()
+  @IsOptional()
+  whatsappGroup?: string;
+
     @IsEnum(CourseDateStatus)
     @IsOptional()
     status?: CourseDateStatus = CourseDateStatus.SCHEDULED;

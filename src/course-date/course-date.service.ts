@@ -453,4 +453,112 @@ export class CourseDatesService {
     // This would send warnings about possible postponement due to low enrollment
   }
 
+  /*
+  async reserveSeats(courseDateId: string, seatCount: number): Promise<CourseDate> {
+  const courseDate = await this.courseDateModel.findById(courseDateId).exec();
+  
+  if (!courseDate) {
+    throw new NotFoundException(`Course date with ID ${courseDateId} not found`);
+  }
+  
+  // Check if there's enough capacity
+  if (courseDate.enrolledCount + seatCount > courseDate.capacity) {
+    throw new BadRequestException(
+      `Cannot reserve ${seatCount} seats. Course date only has ${courseDate.capacity - courseDate.enrolledCount} seats available.`
+    );
+  }
+  
+  // Increase enrolled count to reserve seats
+  courseDate.enrolledCount += seatCount;
+  
+  // If enrollment meets minimum requirements and course was scheduled, mark as confirmed
+  if (courseDate.status === CourseDateStatus.SCHEDULED &&
+      courseDate.enrolledCount >= courseDate.minimumRequired) {
+    courseDate.status = CourseDateStatus.CONFIRMED;
+  }
+  
+  // Save and return updated course date
+  return courseDate.save();
+}*/
+
+
+  async reserveSeats(courseDateId: string, seatCount: number): Promise<CourseDate> {
+  const courseDate = await this.courseDateModel.findById(courseDateId).exec();
+  
+  if (!courseDate) {
+    throw new NotFoundException(`Course date with ID ${courseDateId} not found`);
+  }
+  
+  // Check if there's enough capacity
+  if (courseDate.enrolledCount + seatCount > courseDate.capacity) {
+    throw new BadRequestException(
+      `Cannot reserve ${seatCount} seats. Course date only has ${courseDate.capacity - courseDate.enrolledCount} seats available.`
+    );
+  }
+  
+  // Increase enrolled count to reserve seats
+  courseDate.enrolledCount += seatCount;
+  
+  // If enrollment meets minimum requirements and course was scheduled, mark as confirmed
+  if (courseDate.status === CourseDateStatus.SCHEDULED &&
+      courseDate.enrolledCount >= courseDate.minimumRequired) {
+    courseDate.status = CourseDateStatus.CONFIRMED;
+  }
+  
+  // Save and return updated course date
+  return courseDate.save();
+}
+
+/**
+ * Reserve additional seats for an existing company purchase
+ * Used when increasing quantity of a paid purchase
+ * 
+ * @param courseDateId Course date ID
+ * @param additionalSeats Number of additional seats to reserve
+ * @returns Updated course date
+ */
+async reserveAdditionalSeats(courseDateId: string, additionalSeats: number): Promise<CourseDate> {
+  // This is effectively the same as reserveSeats but with a different name for clarity
+  return this.reserveSeats(courseDateId, additionalSeats);
+}
+
+/**
+ * Release seats that were previously reserved
+ * Used when changing from paid status or reducing quantity
+ * 
+ * @param courseDateId Course date ID
+ * @param seatCount Number of seats to release
+ * @returns Updated course date
+ */
+async releaseSeats(courseDateId: string, seatCount: number): Promise<CourseDate> {
+  const courseDate = await this.courseDateModel.findById(courseDateId).exec();
+  
+  if (!courseDate) {
+    throw new NotFoundException(`Course date with ID ${courseDateId} not found`);
+  }
+  
+  // Ensure we don't try to release more seats than are enrolled
+  const seatsToRelease = Math.min(seatCount, courseDate.enrolledCount);
+  
+  // Decrease enrolled count to release seats
+  courseDate.enrolledCount -= seatsToRelease;
+  
+  // If enrollment falls below minimum requirements and course was confirmed, consider reverting to scheduled
+  if (courseDate.status === CourseDateStatus.CONFIRMED &&
+      courseDate.enrolledCount < courseDate.minimumRequired) {
+    
+    // Only revert to scheduled if there are no actual enrollments (handled separately)
+    // This would require checking if there are actual enrolled users vs. company reserved seats
+    // For simplicity, we'll leave this behavior for now and assume admin will manually change if needed
+    
+    // Uncomment if you want automatic status change:
+    // courseDate.status = CourseDateStatus.SCHEDULED;
+  }
+  
+  // Save and return updated course date
+  return courseDate.save();
+}
+
+
+
 }

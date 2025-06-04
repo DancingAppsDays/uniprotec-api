@@ -445,10 +445,10 @@ export class PaymentsService {
 
 
 
-
+/*
   private async handleCompletedCheckoutLEGACY(session: Stripe.Checkout.Session) {
     const payment = await this.paymentModel.findOne({ stripeSessionId: session.id });
-
+    
     if (payment) {
       payment.status = 'completed';
       payment.stripePaymentIntentId = session.payment_intent as string;
@@ -527,7 +527,7 @@ export class PaymentsService {
         }
       }
     }
-  }
+  }*/
 
   private async handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     console.log("Starting handleSuccessfulPayment with payment intent ID:", paymentIntent.id);

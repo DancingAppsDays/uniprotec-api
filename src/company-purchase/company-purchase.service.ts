@@ -10,6 +10,8 @@ import { EmailService } from '../email/email.service';
 import { randomUUID } from 'crypto';
 
 import axios from 'axios';
+import { CourseDatesService } from 'src/course-date/course-date.service';
+import { CourseDate } from 'src/course-date/schemas/course-date.schema';
 
 
 @Injectable()
@@ -18,6 +20,7 @@ export class CompanyPurchaseService {
     @InjectModel(CompanyPurchase.name) private companyPurchaseModel: Model<CompanyPurchaseDocument>,
     private coursesService: CoursesService,
     private emailService: EmailService,
+    private courseDateService: CourseDatesService,
   ) { }
 
   async create(createCompanyPurchaseDto: CreateCompanyPurchaseDto): Promise<CompanyPurchase> {
@@ -135,6 +138,8 @@ export class CompanyPurchaseService {
     return companyPurchase;
   }
 
+
+  /*
   async update(id: string, updateCompanyPurchaseDto: UpdateCompanyPurchaseDto): Promise<CompanyPurchase> {
     const companyPurchase = await this.companyPurchaseModel.findByIdAndUpdate(
       id,
@@ -149,6 +154,122 @@ export class CompanyPurchaseService {
     return companyPurchase;
   }
 
+    async update(id: string, updateCompanyPurchaseDto: UpdateCompanyPurchaseDto): Promise<CompanyPurchase> {
+  // First find the company purchase to check if we're updating quantity
+  if (updateCompanyPurchaseDto.quantity !== undefined) {
+    const currentPurchase = await this.companyPurchaseModel.findById(id).exec();
+    
+    if (!currentPurchase) {
+      throw new NotFoundException(`Company purchase with ID ${id} not found`);
+    }
+    
+    // Check if the new quantity is less than current enrollment count
+    if (updateCompanyPurchaseDto.quantity < currentPurchase.enrollmentIds.length) {
+      throw new BadRequestException(
+        `Cannot reduce quantity to ${updateCompanyPurchaseDto.quantity} because there are already ${currentPurchase.enrollmentIds.length} enrollments.`
+      );
+    }
+    
+    // Check if status should be changed to completed
+    if (updateCompanyPurchaseDto.quantity === currentPurchase.enrollmentIds.length && 
+        currentPurchase.status === CompanyPurchaseStatus.PAID) {
+      updateCompanyPurchaseDto.status = CompanyPurchaseStatus.COMPLETED;
+    }
+  }
+  
+  const companyPurchase = await this.companyPurchaseModel.findByIdAndUpdate(
+    id,
+    updateCompanyPurchaseDto,
+    { new: true }
+  ).exec();
+
+  if (!companyPurchase) {
+    throw new NotFoundException(`Company purchase with ID ${id} not found`);
+  }
+
+  return companyPurchase;
+}
+
+async updateStatus(id: string, status: CompanyPurchaseStatus, notes?: string): Promise<CompanyPurchase> {
+  const updates: any = { status };
+  
+  if (notes) {
+    updates.adminNotes = notes;
+  }
+  
+  const currentPurchase = await this.companyPurchaseModel.findById(id).exec();
+  
+  if (!currentPurchase) {
+    throw new NotFoundException(`Company purchase with ID ${id} not found`);
+  }
+  
+  // If marking as paid and it wasn't already paid, reserve the seats in the course date
+  if (status === CompanyPurchaseStatus.PAID && 
+      currentPurchase.status !== CompanyPurchaseStatus.PAID && 
+      currentPurchase.status !== CompanyPurchaseStatus.COMPLETED) {
+      
+    updates.paymentDate = new Date();
+    
+    // Find the course date that matches the selectedDate
+    const courseDates = await this.courseDateService.findByCourse(currentPurchase.course.toString());
+    
+    let targetCourseDate : CourseDate | null = null;
+    for (const courseDate of courseDates) {
+      const courseDateStart = new Date(courseDate.startDate);
+      const purchaseDate = new Date(currentPurchase.selectedDate);
+      
+      // Compare dates without time component
+      if (courseDateStart.toDateString() === purchaseDate.toDateString()) {
+        targetCourseDate = courseDate;
+        break;
+      }
+    }
+    
+    if (!targetCourseDate) {
+      throw new NotFoundException(`Could not find course date matching selected date ${currentPurchase.selectedDate}`);
+    }
+    
+    // Update the course date to reserve seats by increasing enrolledCount
+    await this.courseDateService.reserveSeats(targetCourseDate._id, currentPurchase.quantity);
+    
+    // Store the course date ID in the purchase metadata for reference
+    updates.metadata = {
+      ...currentPurchase.metadata,
+      courseDateId: targetCourseDate._id,
+      reservedSeats: currentPurchase.quantity
+    };
+  }
+  
+  const companyPurchase = await this.companyPurchaseModel.findByIdAndUpdate(
+    id,
+    updates,
+    { new: true }
+  ).exec();
+
+  if (!companyPurchase) {
+    throw new NotFoundException(`Company purchase with ID ${id} not found`);
+  }
+
+  // Send appropriate notifications based on status change
+  if (status === CompanyPurchaseStatus.CONTACTED) {
+    await this.sendContactedEmailToCompany(companyPurchase);
+  }
+  
+  if (status === CompanyPurchaseStatus.PAID) {
+    await this.sendPaymentConfirmationToCompany(companyPurchase);
+  }
+
+  return companyPurchase;
+  }
+
+*/
+
+
+
+
+
+
+
   async updateStatus(id: string, status: CompanyPurchaseStatus, notes?: string): Promise<CompanyPurchase> {
     const updates: any = { status };
 
@@ -156,9 +277,56 @@ export class CompanyPurchaseService {
       updates.adminNotes = notes;
     }
 
-    // If marking as paid, add payment date
-    if (status === CompanyPurchaseStatus.PAID) {
+    const currentPurchase = await this.companyPurchaseModel.findById(id).exec();
+
+    if (!currentPurchase) {
+      throw new NotFoundException(`Company purchase with ID ${id} not found`);
+    }
+
+    // If marking as paid and it wasn't already paid, reserve the seats in the course date
+    if (status === CompanyPurchaseStatus.PAID &&
+      currentPurchase.status !== CompanyPurchaseStatus.PAID &&
+      currentPurchase.status !== CompanyPurchaseStatus.COMPLETED) {
+
       updates.paymentDate = new Date();
+
+      // Find the course date that matches the selectedDate
+      const courseDates = await this.courseDateService.findByCourse(currentPurchase.course.toString());
+
+      let targetCourseDate: CourseDate | null = null;
+      for (const courseDate of courseDates) {
+        const courseDateStart = new Date(courseDate.startDate);
+        const purchaseDate = new Date(currentPurchase.selectedDate);
+
+        // Compare dates without time component
+        if (courseDateStart.toDateString() === purchaseDate.toDateString()) {
+          targetCourseDate = courseDate;
+          break;
+        }
+      }
+
+      if (!targetCourseDate) {
+        throw new NotFoundException(`Could not find course date matching selected date ${currentPurchase.selectedDate}`);
+      }
+
+      // Check if there's enough capacity before reserving
+      const availableSeats = targetCourseDate.capacity - targetCourseDate.enrolledCount;
+      if (currentPurchase.quantity > availableSeats) {
+        throw new BadRequestException(
+          `Cannot reserve ${currentPurchase.quantity} seats. Only ${availableSeats} seats available.`
+        );
+      }
+
+      // Update the course date to reserve seats by increasing enrolledCount
+      await this.courseDateService.reserveSeats(targetCourseDate._id, currentPurchase.quantity);
+
+      // Store the course date ID in the purchase metadata for reference
+      updates.metadata = {
+        ...currentPurchase.metadata,
+        courseDateId: targetCourseDate._id,
+        reservedSeats: currentPurchase.quantity,
+        seatsReservedAt: new Date()
+      };
     }
 
     const companyPurchase = await this.companyPurchaseModel.findByIdAndUpdate(
@@ -171,14 +339,81 @@ export class CompanyPurchaseService {
       throw new NotFoundException(`Company purchase with ID ${id} not found`);
     }
 
-    // If status is changing to "contacted", send email to the company
+    // Send appropriate notifications based on status change
     if (status === CompanyPurchaseStatus.CONTACTED) {
       await this.sendContactedEmailToCompany(companyPurchase);
     }
 
-    // If status is changing to "paid", send confirmation to the company
     if (status === CompanyPurchaseStatus.PAID) {
       await this.sendPaymentConfirmationToCompany(companyPurchase);
+    }
+
+    return companyPurchase;
+  }
+
+  // Also add this method to handle quantity updates with seat validation:
+  async update(id: string, updateCompanyPurchaseDto: UpdateCompanyPurchaseDto): Promise<CompanyPurchase> {
+    // First find the company purchase to check if we're updating quantity
+    if (updateCompanyPurchaseDto.quantity !== undefined) {
+      const currentPurchase = await this.companyPurchaseModel.findById(id).exec();
+
+      if (!currentPurchase) {
+        throw new NotFoundException(`Company purchase with ID ${id} not found`);
+      }
+
+      // Check if the new quantity is less than current enrollment count
+      if (updateCompanyPurchaseDto.quantity < currentPurchase.enrollmentIds.length) {
+        throw new BadRequestException(
+          `Cannot reduce quantity to ${updateCompanyPurchaseDto.quantity} because there are already ${currentPurchase.enrollmentIds.length} enrollments.`
+        );
+      }
+
+      // If the purchase is already paid, check if we need to adjust reserved seats
+      if (currentPurchase.status === CompanyPurchaseStatus.PAID &&
+        currentPurchase.metadata?.courseDateId) {
+
+        const quantityDifference = updateCompanyPurchaseDto.quantity - currentPurchase.quantity;
+
+        if (quantityDifference > 0) {
+          // Need to reserve more seats
+          try {
+            await this.courseDateService.reserveSeats(
+              currentPurchase.metadata.courseDateId,
+              quantityDifference
+            );
+          } catch (error) {
+            throw new BadRequestException(
+              `Cannot increase quantity: ${error.message}`
+            );
+          }
+        } else if (quantityDifference < 0) {
+          //TODO: Handle seat release
+          // Need to release some seats
+          // This would require a new method in CourseDateService to release seats
+          // For now, we'll just update the metadata
+          updateCompanyPurchaseDto.metadata = {
+            ...(currentPurchase.metadata || {}), // 
+            reservedSeats: updateCompanyPurchaseDto.quantity,
+            seatsAdjustedAt: new Date()
+          };
+        }
+      }
+
+      // Check if status should be changed to completed
+      if (updateCompanyPurchaseDto.quantity === currentPurchase.enrollmentIds.length &&
+        currentPurchase.status === CompanyPurchaseStatus.PAID) {
+        updateCompanyPurchaseDto.status = CompanyPurchaseStatus.COMPLETED;
+      }
+    }
+
+    const companyPurchase = await this.companyPurchaseModel.findByIdAndUpdate(
+      id,
+      updateCompanyPurchaseDto,
+      { new: true }
+    ).exec();
+
+    if (!companyPurchase) {
+      throw new NotFoundException(`Company purchase with ID ${id} not found`);
     }
 
     return companyPurchase;
@@ -249,77 +484,63 @@ export class CompanyPurchaseService {
     return companyPurchase;
   }
 
+
   private async sendConfirmationEmailToContact(purchase: CompanyPurchase): Promise<void> {
     try {
-      // Implementation will depend on your email service
-      // For now, we'll log the info that would be sent
       console.log(`Sending confirmation email to ${purchase.contactEmail} for company purchase ${purchase.requestId}`);
 
-      // Implement with EmailService when ready
-      /*
-      await this.emailService.sendEmail({
-        to: purchase.contactEmail,
-        subject: `Solicitud de compra recibida - ${purchase.requestId}`,
-        html: `
-          <h1>Hemos recibido tu solicitud de compra</h1>
-          <p>Estimado(a) ${purchase.contactName},</p>
-          <p>Gracias por tu interés en adquirir el curso "${purchase.courseTitle}" para ${purchase.companyName}.</p>
-          <p>Tu solicitud ha sido recibida y uno de nuestros representantes se pondrá en contacto contigo en las próximas 24 horas hábiles para coordinar los detalles del pago y la facturación.</p>
-          <p>Detalles de la solicitud:</p>
-          <ul>
-            <li><strong>Número de solicitud:</strong> ${purchase.requestId}</li>
-            <li><strong>Curso:</strong> ${purchase.courseTitle}</li>
-            <li><strong>Fecha seleccionada:</strong> ${new Date(purchase.selectedDate).toLocaleDateString('es-MX')}</li>
-            <li><strong>Cantidad:</strong> ${purchase.quantity} participantes</li>
-          </ul>
-          <p>Si tienes alguna pregunta, puedes responder a este correo o llamarnos al (55) 1234-5678.</p>
-        `
-      });
-      */
+      await this.emailService.sendCompanyPurchaseConfirmationEmail(
+        purchase.contactEmail,
+        {
+          requestId: purchase.requestId,
+          contactName: purchase.contactName,
+          companyName: purchase.companyName,
+          courseTitle: purchase.courseTitle,
+          selectedDate: purchase.selectedDate,
+          quantity: purchase.quantity
+        }
+      );
     } catch (error) {
       console.error('Error sending confirmation email to contact:', error);
     }
   }
 
+
   private async notifyAdminsOfNewRequest(purchase: CompanyPurchase): Promise<void> {
     try {
-      // Implementation will depend on your email service
-      // For now, we'll log the info that would be sent
       console.log(`Notifying admins about new company purchase request ${purchase.requestId}`);
 
-      // Implement with EmailService when ready
-      /*
-      await this.emailService.sendEmail({
-        to: 'ventas@academia-uniprotec.com', // Replace with your admin email
-        subject: `Nueva solicitud de compra empresarial - ${purchase.requestId}`,
-        html: `
-          <h1>Nueva solicitud de compra empresarial</h1>
-          <p>Se ha recibido una nueva solicitud de compra empresarial:</p>
-          <ul>
-            <li><strong>Empresa:</strong> ${purchase.companyName}</li>
-            <li><strong>RFC:</strong> ${purchase.rfc}</li>
-            <li><strong>Contacto:</strong> ${purchase.contactName}</li>
-            <li><strong>Email:</strong> ${purchase.contactEmail}</li>
-            <li><strong>Teléfono:</strong> ${purchase.contactPhone}</li>
-            <li><strong>Curso:</strong> ${purchase.courseTitle}</li>
-            <li><strong>Fecha seleccionada:</strong> ${new Date(purchase.selectedDate).toLocaleDateString('es-MX')}</li>
-            <li><strong>Cantidad:</strong> ${purchase.quantity} participantes</li>
-            <li><strong>Información adicional:</strong> ${purchase.additionalInfo || 'N/A'}</li>
-          </ul>
-          <p>Por favor, contacte al cliente lo antes posible para coordinar los detalles del pago y la facturación.</p>
-        `
-      });
-      */
+      await this.emailService.sendCompanyPurchaseAdminNotificationEmail(
+        {
+          requestId: purchase.requestId,
+          companyName: purchase.companyName,
+          rfc: purchase.rfc,
+          contactName: purchase.contactName,
+          contactEmail: purchase.contactEmail,
+          contactPhone: purchase.contactPhone,
+          courseTitle: purchase.courseTitle,
+          selectedDate: purchase.selectedDate,
+          quantity: purchase.quantity,
+          additionalInfo: purchase.additionalInfo
+        }
+      );
     } catch (error) {
       console.error('Error notifying admins of new request:', error);
     }
   }
-
   private async sendContactedEmailToCompany(purchase: CompanyPurchase): Promise<void> {
     try {
       console.log(`Sending contacted email to ${purchase.contactEmail} for company purchase ${purchase.requestId}`);
 
-      // Implement with EmailService when ready
+      await this.emailService.sendCompanyContactedEmail(
+        purchase.contactEmail,
+        {
+          requestId: purchase.requestId,
+          contactName: purchase.contactName,
+          companyName: purchase.companyName,
+          courseTitle: purchase.courseTitle
+        }
+      );
     } catch (error) {
       console.error('Error sending contacted email to company:', error);
     }
@@ -329,7 +550,20 @@ export class CompanyPurchaseService {
     try {
       console.log(`Sending payment confirmation email to ${purchase.contactEmail} for company purchase ${purchase.requestId}`);
 
-      // Implement with EmailService when ready
+      await this.emailService.sendCompanyPaymentConfirmationEmail(
+        purchase.contactEmail,
+        {
+          requestId: purchase.requestId,
+          contactName: purchase.contactName,
+          companyName: purchase.companyName,
+          courseTitle: purchase.courseTitle,
+          selectedDate: purchase.selectedDate,
+          quantity: purchase.quantity,
+          paymentMethod: purchase.paymentMethod,
+          paymentReference: purchase.paymentReference,
+          paymentAmount: purchase.paymentAmount
+        }
+      );
     } catch (error) {
       console.error('Error sending payment confirmation to company:', error);
     }
@@ -339,9 +573,23 @@ export class CompanyPurchaseService {
     try {
       console.log(`Sending cancellation email to ${purchase.contactEmail} for company purchase ${purchase.requestId}`);
 
-      // Implement with EmailService when ready
+      await this.emailService.sendCompanyCancellationEmail(
+        purchase.contactEmail,
+        {
+          requestId: purchase.requestId,
+          contactName: purchase.contactName,
+          companyName: purchase.companyName,
+          courseTitle: purchase.courseTitle,
+          reason: reason
+        }
+      );
     } catch (error) {
       console.error('Error sending cancellation email to company:', error);
     }
   }
+
+
+
+
+
 }

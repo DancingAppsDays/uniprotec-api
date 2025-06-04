@@ -6,6 +6,7 @@ import { CompanyPurchaseService } from './company-purchase.service';
 import { CompanyPurchase, CompanyPurchaseSchema } from './schemas/company-purchase.schema';
 import { CoursesModule } from '../courses/courses.module';
 import { EmailModule } from '../email/email.module';
+import { CourseDatesModule } from 'src/course-date/course-date.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { EmailModule } from '../email/email.module';
     ]),
     CoursesModule,
     EmailModule,
+    CourseDatesModule,
   ],
   controllers: [CompanyPurchaseController],
   providers: [CompanyPurchaseService],

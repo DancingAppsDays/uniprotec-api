@@ -44,7 +44,7 @@ async function bootstrap() {
   //app.use(express.urlencoded({ extended: true }));
  
   app.enableCors({
-    origin: ['http://localhost:4200', 'http://localhost:3000', process.env.FRONTEND_URL ], // Add all your frontend origins
+    origin: [process.env.FRONTEND_URLLOCAL,  process.env.FRONTEND_URL, process.env.FRONTEND_URLDEV ], // Add all your frontend origins
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
     allowedHeaders: 'Origin,X-Requested-With,Content-Type,Accept,Authorization',

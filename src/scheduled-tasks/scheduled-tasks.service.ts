@@ -28,7 +28,8 @@ export class ScheduledTasksService {
    */
   @Cron(CronExpression.EVERY_DAY_AT_6AM)
   async checkCoursesForPostponement() {
-    this.logger.log('Running scheduled task: Check courses for postponement');
+    this.logger.log('Running scheduled task: Check courses for postponement, uderconstruction');
+    return;
     try {
       const results = await this.courseDatesService.checkAllCoursesForPostponement();
       this.logger.log(`Postponement check completed: ${JSON.stringify(results)}`);
@@ -86,8 +87,9 @@ export class ScheduledTasksService {
               title: courseDate.course.title,
               selectedDate: courseDate.startDate,
               zoomLink: courseDate.meetingUrl || '',
-              zoomMeetingId: courseDate.zoomMeetingId || '',
-              zoomPassword: courseDate.zoomPassword || '',
+              whatsappGroup: courseDate.whatsappGroup || '',
+             // zoomMeetingId: courseDate.zoomMeetingId || '',
+            //  zoomPassword: courseDate.zoomPassword || '',
               instructor: courseDate.instructor.name
             };
 
@@ -107,7 +109,8 @@ export class ScheduledTasksService {
    */
   @Cron(CronExpression.EVERY_WEEKEND)
   async generateAndSendCertificates() {
-    this.logger.log('Running scheduled task: Generate and send certificates');
+    this.logger.log('Running scheduled task: Generate and send certificates, underconstruction  ');
+    return;
     try {
       // Get all completed enrollments that don't have certificates yet
       const completedEnrollments = await this.enrollmentsService.enrollmentModel.find({
