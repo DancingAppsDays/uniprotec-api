@@ -18,7 +18,7 @@ export class CompanyPurchaseService {
     @InjectModel(CompanyPurchase.name) private companyPurchaseModel: Model<CompanyPurchaseDocument>,
     private coursesService: CoursesService,
     private emailService: EmailService,
-  ) {}
+  ) { }
 
   async create(createCompanyPurchaseDto: CreateCompanyPurchaseDto): Promise<CompanyPurchase> {
     // Check if course exists
@@ -50,13 +50,14 @@ export class CompanyPurchaseService {
 
     // Send confirmation email to the contact
     await this.sendConfirmationEmailToContact(savedPurchase);
-    
+
     // Send notification email to admins
     await this.notifyAdminsOfNewRequest(savedPurchase);
 
     const webhookUrl = process.env.ALEK_WEBHOOK_URL;
     if (webhookUrl) {
       const payload = {
+        type: 'company_purchase',
         id: savedPurchase._id,
         companyName: savedPurchase.companyName,
         rfc: savedPurchase.rfc,
@@ -71,7 +72,7 @@ export class CompanyPurchaseService {
         status: savedPurchase.status,
         requestId: savedPurchase.requestId,
         //createdAt: savedPurchase.createdAt,
-       // updatedAt: savedPurchase.updatedAt,
+        // updatedAt: savedPurchase.updatedAt,
       };
 
       console.log('Sending payload to webhook:', JSON.stringify(payload, null, 2));
@@ -102,8 +103,8 @@ export class CompanyPurchaseService {
   }
 
   async findByCompany(companyName: string): Promise<CompanyPurchase[]> {
-    return this.companyPurchaseModel.find({ 
-      companyName: { $regex: new RegExp(companyName, 'i') } 
+    return this.companyPurchaseModel.find({
+      companyName: { $regex: new RegExp(companyName, 'i') }
     })
       .populate('course')
       .sort({ createdAt: -1 })
@@ -150,11 +151,11 @@ export class CompanyPurchaseService {
 
   async updateStatus(id: string, status: CompanyPurchaseStatus, notes?: string): Promise<CompanyPurchase> {
     const updates: any = { status };
-    
+
     if (notes) {
       updates.adminNotes = notes;
     }
-    
+
     // If marking as paid, add payment date
     if (status === CompanyPurchaseStatus.PAID) {
       updates.paymentDate = new Date();
@@ -174,7 +175,7 @@ export class CompanyPurchaseService {
     if (status === CompanyPurchaseStatus.CONTACTED) {
       await this.sendContactedEmailToCompany(companyPurchase);
     }
-    
+
     // If status is changing to "paid", send confirmation to the company
     if (status === CompanyPurchaseStatus.PAID) {
       await this.sendPaymentConfirmationToCompany(companyPurchase);
@@ -184,9 +185,9 @@ export class CompanyPurchaseService {
   }
 
   async recordPayment(
-    id: string, 
-    paymentMethod: string, 
-    paymentReference: string, 
+    id: string,
+    paymentMethod: string,
+    paymentReference: string,
     paymentAmount: number
   ): Promise<CompanyPurchase> {
     const companyPurchase = await this.companyPurchaseModel.findByIdAndUpdate(
@@ -253,7 +254,7 @@ export class CompanyPurchaseService {
       // Implementation will depend on your email service
       // For now, we'll log the info that would be sent
       console.log(`Sending confirmation email to ${purchase.contactEmail} for company purchase ${purchase.requestId}`);
-      
+
       // Implement with EmailService when ready
       /*
       await this.emailService.sendEmail({
@@ -285,7 +286,7 @@ export class CompanyPurchaseService {
       // Implementation will depend on your email service
       // For now, we'll log the info that would be sent
       console.log(`Notifying admins about new company purchase request ${purchase.requestId}`);
-      
+
       // Implement with EmailService when ready
       /*
       await this.emailService.sendEmail({
@@ -317,7 +318,7 @@ export class CompanyPurchaseService {
   private async sendContactedEmailToCompany(purchase: CompanyPurchase): Promise<void> {
     try {
       console.log(`Sending contacted email to ${purchase.contactEmail} for company purchase ${purchase.requestId}`);
-      
+
       // Implement with EmailService when ready
     } catch (error) {
       console.error('Error sending contacted email to company:', error);
@@ -327,7 +328,7 @@ export class CompanyPurchaseService {
   private async sendPaymentConfirmationToCompany(purchase: CompanyPurchase): Promise<void> {
     try {
       console.log(`Sending payment confirmation email to ${purchase.contactEmail} for company purchase ${purchase.requestId}`);
-      
+
       // Implement with EmailService when ready
     } catch (error) {
       console.error('Error sending payment confirmation to company:', error);
@@ -337,7 +338,7 @@ export class CompanyPurchaseService {
   private async sendCancellationEmailToCompany(purchase: CompanyPurchase, reason: string): Promise<void> {
     try {
       console.log(`Sending cancellation email to ${purchase.contactEmail} for company purchase ${purchase.requestId}`);
-      
+
       // Implement with EmailService when ready
     } catch (error) {
       console.error('Error sending cancellation email to company:', error);

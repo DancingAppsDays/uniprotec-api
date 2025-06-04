@@ -11,6 +11,7 @@ import { Enrollment, EnrollmentStatus } from '../enrollment/schemas/enrollment.s
 import { CreateCheckoutDto } from './dto/create-checkout.dto';
 import { CourseDate, CourseDateDocument } from 'src/course-date/schemas/course-date.schema';
 import { Course } from 'src/courses/schemas/course.schema';
+import axios from 'axios';
 
 @Injectable()
 export class PaymentsService {
@@ -35,7 +36,7 @@ export class PaymentsService {
     });
   }
 
-  async createPaymentIntent(data: any): Promise<{ clientSecret: string | null}> {
+  async createPaymentIntent(data: any): Promise<{ clientSecret: string | null }> {
     try {
       const paymentIntent = await this.stripe.paymentIntents.create({
         amount: Math.round(data.price * 100),
@@ -45,9 +46,10 @@ export class PaymentsService {
           course_id: data.courseId,
           selected_date: data.selectedDate || '',
           user_id: data.userId || '',
+          customer_phone: data.customerPhone || '',
         },
       });
-  
+
       // Save payment info to database
       await this.paymentModel.create({
         amount: data.price,
@@ -63,7 +65,7 @@ export class PaymentsService {
           quantity: data.quantity,
         },
       });
-  
+
       return {
         clientSecret: paymentIntent.client_secret,
       };
@@ -82,10 +84,10 @@ export class PaymentsService {
     try {
       // Fetch the payment intent from Stripe
       const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
-      
+
       // Process it as if it came from a webhook
       await this.handleSuccessfulPayment(paymentIntent);
-      
+
       return { success: true, message: 'Webhook test processed successfully' };
     } catch (error) {
       console.error('Test webhook failed:', error);
@@ -131,12 +133,13 @@ export class PaymentsService {
           course_id: courseId,
           selected_date: selectedDate || '',
           user_id: userId || '',
+          //customer_phone: data.customerPhone || '',
         },
       });
 
       // Save payment info to database
       await this.paymentModel.create({
-      //  _id: new mongoose.Types.ObjectId().toString(), // Generate a new MongoDB ID
+        //  _id: new mongoose.Types.ObjectId().toString(), // Generate a new MongoDB ID
         amount: price,
         currency: 'mxn',
         status: 'pending',
@@ -200,20 +203,20 @@ export class PaymentsService {
     if (!webhookSecret) {
       throw new Error('STRIPE_WEBHOOK_SECRET is not defined in environment variables');
     }
-  
+
     console.log("Webhook secret:", webhookSecret);
     console.log("Signature:", signature);
     console.log(payload)
-    
+
     try {
       const event = this.stripe.webhooks.constructEvent(
         payload,
         signature,
         webhookSecret
       );
-  
+
       console.log("Event type:", event.type);
-      
+
       switch (event.type) {
         case 'checkout.session.completed':
           await this.handleCompletedCheckout(event.data.object as Stripe.Checkout.Session);
@@ -222,7 +225,7 @@ export class PaymentsService {
           await this.handleSuccessfulPayment(event.data.object as Stripe.PaymentIntent);
           break;
       }
-  
+
       return { received: true };
     } catch (error) {
       console.error('Webhook error:', error);
@@ -236,7 +239,7 @@ export class PaymentsService {
     try {
       let event;
       const webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
-  
+
       // For testing: if payload is not a buffer, assume it's the parsed JSON
       if (Buffer.isBuffer(payload)) {
         // Normal path with signature verification
@@ -250,9 +253,9 @@ export class PaymentsService {
         console.warn('Using parsed body without signature verification (for testing only)');
         event = payload;
       }
-  
+
       console.log('Processing Stripe event:', event.type);
-  
+
       switch (event.type) {
         case 'checkout.session.completed':
           await this.handleCompletedCheckout(event.data.object);
@@ -261,7 +264,7 @@ export class PaymentsService {
           await this.handleSuccessfulPayment(event.data.object);
           break;
       }
-  
+
       return { received: true };
     } catch (error) {
       console.error('Webhook error:', error);
@@ -301,109 +304,144 @@ export class PaymentsService {
   }
 
 
-  
-private async handleCompletedCheckout(session: Stripe.Checkout.Session) {
-  console.log("Starting handleCompletedCheckout with session ID:", session.id);
-  console.log("Session metadata:", session.metadata);
-  
-  const payment = await this.paymentModel.findOne({ stripeSessionId: session.id });
-  console.log("Found payment record:", payment ? "Yes" : "No");
 
-  if (payment) {
-    console.log("Payment details:", {
-      id: payment._id,
-      status: payment.status,
-      course: payment.course,
-      userId: payment.userId,
-      selectedDate: payment.selectedDate
-    });
-    
-    payment.status = 'completed';
-    payment.stripePaymentIntentId = session.payment_intent as string;
-    await payment.save();
-    console.log("Payment status updated to completed");
+  private async handleCompletedCheckout(session: Stripe.Checkout.Session) {
+    console.log("Starting handleCompletedCheckout with session ID:", session.id);
+    console.log("Session metadata:", session.metadata);
 
-    // Create enrollment if this payment was for a course
-    if (payment.course && payment.selectedDate && payment.userId) {
-      try {
-        console.log("Starting enrollment creation process");
-        
-        // Find the appropriate course date based on the selected date
-        const courseDates = await this.courseDatesService.findByCourse(payment.course.toString());
-        console.log(`Found ${courseDates.length} course dates for course:`, payment.course);
+    const payment = await this.paymentModel.findOne({ stripeSessionId: session.id });
+    console.log("Found payment record:", payment ? "Yes" : "No");
 
-        let targetCourseDate;
-        const selectedDate = new Date(payment.selectedDate);
-        console.log("Looking for course date matching:", selectedDate.toISOString());
-
-        // Find the course date that matches the selected date
-        for (const courseDate of courseDates) {
-          const courseDateStart = new Date(courseDate.startDate);
-          console.log("Comparing with course date:", courseDateStart.toISOString());
-
-          // Compare dates without time component
-          if (
-            courseDateStart.getFullYear() === selectedDate.getFullYear() &&
-            courseDateStart.getMonth() === selectedDate.getMonth() &&
-            courseDateStart.getDate() === selectedDate.getDate()
-          ) {
-            targetCourseDate = courseDate;
-            console.log("Match found! Course date ID:", courseDate._id);
-            break;
-          }
-        }
-
-        if (targetCourseDate) {
-          console.log("Creating enrollment with:", {
-            userId: payment.userId.toString(),
-            courseDateId: targetCourseDate._id,
-            paymentId: payment._id!.toString()
-          });
-          
-          // Create enrollment
-          try {
-            const enrollment = await this.enrollmentsService.create({
-              user: payment.userId.toString(),
-              courseDate: targetCourseDate._id,
-              status: EnrollmentStatus.CONFIRMED,
-              payment: payment._id!.toString(),
-              metadata: {
-                paymentMethod: 'stripe',
-                paymentSessionId: session.id,
-                paymentIntentId: session.payment_intent
-              }
-            });
-            console.log("Enrollment created successfully:");//, enrollment._id);
-          } catch (enrollError) {
-            console.error("Error during enrollment creation:", enrollError);
-          }
-        } else {
-          console.error('No matching course date found for the selected date:', payment.selectedDate);
-        }
-      } catch (error) {
-        console.error('Error in enrollment creation process:', error);
-      }
-    } else {
-      console.log("Missing required fields for enrollment:", {
-        hasCourse: !!payment.course,
-        hasSelectedDate: !!payment.selectedDate,
-        hasUserId: !!payment.userId
+    if (payment) {
+      console.log("Payment details:", {
+        id: payment._id,
+        status: payment.status,
+        course: payment.course,
+        userId: payment.userId,
+        selectedDate: payment.selectedDate
       });
+
+      payment.status = 'completed';
+      payment.stripePaymentIntentId = session.payment_intent as string;
+      await payment.save();
+      console.log("Payment status updated to completed");
+      let enrollmentResult: Enrollment | null = null;
+
+      // Create enrollment if this payment was for a course
+      if (payment.course && payment.selectedDate && payment.userId) {
+        try {
+          console.log("Starting enrollment creation process");
+
+          // Find the appropriate course date based on the selected date
+          const courseDates = await this.courseDatesService.findByCourse(payment.course.toString());
+          console.log(`Found ${courseDates.length} course dates for course:`, payment.course);
+
+          let targetCourseDate;
+          const selectedDate = new Date(payment.selectedDate);
+          console.log("Looking for course date matching:", selectedDate.toISOString());
+
+          // Find the course date that matches the selected date
+          for (const courseDate of courseDates) {
+            const courseDateStart = new Date(courseDate.startDate);
+            console.log("Comparing with course date:", courseDateStart.toISOString());
+
+            // Compare dates without time component
+            if (
+              courseDateStart.getFullYear() === selectedDate.getFullYear() &&
+              courseDateStart.getMonth() === selectedDate.getMonth() &&
+              courseDateStart.getDate() === selectedDate.getDate()
+            ) {
+              targetCourseDate = courseDate;
+              console.log("Match found! Course date ID:", courseDate._id);
+              break;
+            }
+          }
+
+          if (targetCourseDate) {
+            console.log("Creating enrollment with:", {
+              userId: payment.userId.toString(),
+              courseDateId: targetCourseDate._id,
+              paymentId: payment._id!.toString()
+            });
+
+            // Create enrollment
+            try {
+              const enrollment = await this.enrollmentsService.create({
+                user: payment.userId.toString(),
+                courseDate: targetCourseDate._id,
+                status: EnrollmentStatus.CONFIRMED,
+                payment: payment._id!.toString(),
+                metadata: {
+                  paymentMethod: 'stripe',
+                  paymentSessionId: session.id,
+                  paymentIntentId: session.payment_intent
+                }
+              });
+              console.log("Enrollment created successfully:");//, enrollment._id);
+              enrollmentResult = enrollment;
+            } catch (enrollError) {
+              console.error("Error during enrollment creation:", enrollError);
+            }
+          } else {
+            console.error('No matching course date found for the selected date:', payment.selectedDate);
+          }
+        } catch (error) {
+          console.error('Error in enrollment creation process:', error);
+        }
+      } else {
+        console.log("Missing required fields for enrollment:", {
+          hasCourse: !!payment.course,
+          hasSelectedDate: !!payment.selectedDate,
+          hasUserId: !!payment.userId
+        });
+      }
+
+      // Send course access email //DEPERECATED, this is triggered on enrollment creation now
+      /* if (payment.customerEmail) {
+         try {
+           console.log("Attempting to send course access email to:", payment.customerEmail);
+           // Code for sending email...
+         } catch (error) {
+           console.error('Error sending course access email:', error);
+         }
+       }*/
+      const webhookUrl = process.env.ALEK_WEBHOOK_URL;
+      if (webhookUrl) {
+        const payload = {
+          type: 'individual_purchase',
+          userId: payment.userId,
+          customerEmail: payment.customerEmail,
+          customerPhone: payment.metadata?.customer_phone,
+          courseId: payment.course,
+          courseTitle: payment.metadata?.courseTitle,
+          selectedDate: payment.selectedDate,
+          amount: payment.amount,
+          paymentIntentId: payment.id,
+          enrollment: enrollmentResult ? {
+            id: enrollmentResult._id,
+            status: enrollmentResult.status,
+            courseDate: enrollmentResult.courseDate,
+            user: enrollmentResult.user,
+            metadata: enrollmentResult.metadata,
+          } : null,
+        };
+
+        try {
+          await axios.post(webhookUrl, payload);
+        } catch (error) {
+          console.error('Webhook error:', error.message);
+        }
+      }
+
+
+
+
+
+    } else {
+      console.error('No payment record found for session ID:', session.id);
     }
 
-    // Send course access email
-    if (payment.customerEmail) {
-      try {
-        console.log("Attempting to send course access email to:", payment.customerEmail);
-        // Code for sending email...
-      } catch (error) {
-        console.error('Error sending course access email:', error);
-      }
-    }
-  } else {
-    console.error('No payment record found for session ID:', session.id);
   }
-}
 
 
 
@@ -496,14 +534,14 @@ private async handleCompletedCheckout(session: Stripe.Checkout.Session) {
     console.log("Payment intent metadata:", paymentIntent.metadata);
 
     const payment = await this.paymentModel.findOne({ stripePaymentIntentId: paymentIntent.id });
-    
+
     console.log("Found payment record:", payment ? "Yes" : "No");
-    console.log("Payment details:",payment);
+    console.log("Payment details:", payment);
 
     if (payment) {
       payment.status = 'completed';
       await payment.save();
-      
+
       // Create enrollment if this payment was for a course
       if (payment.course && payment.selectedDate && payment.userId) {
         try {
@@ -511,15 +549,15 @@ private async handleCompletedCheckout(session: Stripe.Checkout.Session) {
           const courseDates = await this.courseDateModel.find({
             course: payment.course
           }).exec();
-          
+
           let targetCourseDate;
           if (payment.selectedDate) {
             const selectedDate = new Date(payment.selectedDate);
-            
+
             // Find the course date that matches the selected date
             for (const courseDate of courseDates) {
               const courseDateStart = new Date(courseDate.startDate);
-              
+
               // Compare dates without time component
               if (
                 courseDateStart.getFullYear() === selectedDate.getFullYear() &&
@@ -533,7 +571,7 @@ private async handleCompletedCheckout(session: Stripe.Checkout.Session) {
           }
 
           console.log("Target course date:", targetCourseDate);
-          
+
           if (targetCourseDate) {
             // Create enrollment
             await this.enrollmentsService.create({
@@ -546,7 +584,7 @@ private async handleCompletedCheckout(session: Stripe.Checkout.Session) {
                 paymentIntentId: paymentIntent.id
               }
             });
-            
+
             console.log(`Enrollment created for user ${payment.userId} in course date ${targetCourseDate._id}`);
           }
         } catch (error) {
@@ -569,7 +607,7 @@ private async handleCompletedCheckout(session: Stripe.Checkout.Session) {
     }
 
     console.log(courseId, selectedDateStr, userId);
-    
+
     try {
       // Check if course exists
       const course = await this.courseModel.findById(courseId).exec();
@@ -585,7 +623,7 @@ private async handleCompletedCheckout(session: Stripe.Checkout.Session) {
       let targetCourseDate;
       for (const courseDate of courseDates) {
         const courseDateStart = new Date(courseDate.startDate);
-        
+
         // Compare dates without time component
         if (
           courseDateStart.getFullYear() === selectedDate.getFullYear() &&
@@ -596,67 +634,67 @@ private async handleCompletedCheckout(session: Stripe.Checkout.Session) {
           break;
         }
       }
-      
+
       if (!targetCourseDate) {
         return { valid: false, message: 'Invalid course date selected' };
       }
-      
+
       if (targetCourseDate.enrolledCount >= targetCourseDate.capacity) {
         return { valid: false, message: 'Este curso ya no tiene lugares disponibles' };
       }
 
-       // Check if user is already enrolled
-    const existingEnrollment = await this.enrollmentModel.findOne({
-      user: userId,
-      courseDate: targetCourseDate._id,
-      status: { $nin: ['canceled', 'refunded'] }
-    }).exec();
+      // Check if user is already enrolled
+      const existingEnrollment = await this.enrollmentModel.findOne({
+        user: userId,
+        courseDate: targetCourseDate._id,
+        status: { $nin: ['canceled', 'refunded'] }
+      }).exec();
+
+      if (existingEnrollment) {
+        return {
+          valid: false,
+          message: 'Ya estás inscrito en este curso'
+        };
+      }
+
+      return { valid: true };
+    } catch (error) {
+      console.error('Payment validation error:', error);
+      return { valid: false, message: 'Falló la validación del pago' };
+    }
+
+    //TODO CHECK IF  this apraoch is affected by multiple same course dates on same day
+    //previous implemataion, required coursedateid, which is not supported but might be
+    /*
+    // Check if course date exists and has capacity
+    const courseDate = await this.courseDateModel.findById(courseDateId).exec();
+    if (!courseDate) {
+      return { valid: false, message: 'Course date not found' };
+    }
     
-    if (existingEnrollment) {
+    if (courseDate.enrolledCount >= courseDate.capacity) {
+      return { valid: false, message: 'This course date is at full capacity' };
+    }
+    
+    // Check if user is already enrolled
+    const enrollments = await this.enrollmentsService.findByCourseDate(courseDateId);
+    const userEnrollment = enrollments.find(e => 
+      e.user._id.toString() === userId && 
+      e.status !== 'canceled' && 
+      e.status !== 'refunded'
+    );
+    
+    if (userEnrollment) {
       return { 
         valid: false, 
-        message: 'Ya estás inscrito en este curso' 
+        message: 'You are already enrolled in this course' 
       };
     }
     
     return { valid: true };
   } catch (error) {
     console.error('Payment validation error:', error);
-    return { valid: false, message: 'Falló la validación del pago' };
-  }
-
-      //TODO CHECK IF  this apraoch is affected by multiple same course dates on same day
-      //previous implemataion, required coursedateid, which is not supported but might be
-      /*
-      // Check if course date exists and has capacity
-      const courseDate = await this.courseDateModel.findById(courseDateId).exec();
-      if (!courseDate) {
-        return { valid: false, message: 'Course date not found' };
-      }
-      
-      if (courseDate.enrolledCount >= courseDate.capacity) {
-        return { valid: false, message: 'This course date is at full capacity' };
-      }
-      
-      // Check if user is already enrolled
-      const enrollments = await this.enrollmentsService.findByCourseDate(courseDateId);
-      const userEnrollment = enrollments.find(e => 
-        e.user._id.toString() === userId && 
-        e.status !== 'canceled' && 
-        e.status !== 'refunded'
-      );
-      
-      if (userEnrollment) {
-        return { 
-          valid: false, 
-          message: 'You are already enrolled in this course' 
-        };
-      }
-      
-      return { valid: true };
-    } catch (error) {
-      console.error('Payment validation error:', error);
-      return { valid: false, message: 'Failed to validate payment request' };
-    }*/
+    return { valid: false, message: 'Failed to validate payment request' };
+  }*/
   }
 }
