@@ -68,16 +68,6 @@ export class CourseDate {
     @Prop({ required: true, default: 6 })
     minimumRequired: number;
 
-    // @Prop({ type: [{ type: MongooseSchema.Types.ObjectId, ref: 'User' }] })
-    // enrolledUsers: User[];
-
-    //CLaude verify this, 
-    /*
-    
-src/course-date/course-date.service.ts:236:71 - error TS2345: Argument of type 'string' is not assignable to parameter of type 'User'.
-
-236     if (courseDate.enrolledUsers && courseDate.enrolledUsers.includes(userId)) {
-    */
     @Prop({ type: [String] }) // Change to an array of strings
     enrolledUsers: string[];
 
@@ -96,6 +86,29 @@ src/course-date/course-date.service.ts:236:71 - error TS2345: Argument of type '
         postponementReason?: string;
         cancellationReason?: string;
     };
+
+
+    // NEW PRICING AND PROMOTION FIELDS
+    @Prop({ min: 0 })
+    overridePrice?: number; // If set, this price overrides the course's base price
+
+    @Prop({ min: 0, max: 100 })
+    discountPercentage?: number; // Percentage discount (0-100)
+
+    @Prop({ min: 0 })
+    discountAmount?: number; // Fixed amount discount
+
+    @Prop()
+    promotionalText?: string; // Text to display for promotions (e.g., "50% OFF Company Purchases!")
+
+    @Prop()
+    promotionalBadge?: string; // Short badge text (e.g., "SALE", "LIMITED", "50% OFF")
+
+    @Prop({ default: false })
+    isPromotional: boolean; // Flag to easily identify promotional dates
+
+    @Prop()
+    promoStartDate?: Date; // When the promotion starts
 
 
     // Add _id explicitly

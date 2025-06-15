@@ -1,5 +1,5 @@
 // src/course-dates/dto/create-course-date.dto.ts
-import { IsString, IsDate, IsNumber, IsEnum, IsOptional, IsArray, Min, ValidateNested } from 'class-validator';
+import { IsString, IsDate, IsNumber, IsEnum, IsOptional, IsArray, Min, ValidateNested, IsBoolean, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 import { CourseDateStatus } from '../schemas/course-date.schema';
 
@@ -55,9 +55,9 @@ export class CreateCourseDateDto {
     @IsOptional()
     meetingUrl?: string;
 
-     @IsString()
-  @IsOptional()
-  whatsappGroup?: string;
+    @IsString()
+    @IsOptional()
+    whatsappGroup?: string;
 
     @IsEnum(CourseDateStatus)
     @IsOptional()
@@ -84,4 +84,45 @@ export class CreateCourseDateDto {
     @IsString()
     @IsOptional()
     notes?: string;
+
+
+
+    // NEW PRICING AND PROMOTION FIELDS
+    @IsNumber()
+    @Min(0)
+    @IsOptional()
+    overridePrice?: number;
+
+    @IsNumber()
+    @Min(0)
+    @Max(100)
+    @IsOptional()
+    discountPercentage?: number;
+
+    @IsNumber()
+    @Min(0)
+    @IsOptional()
+    discountAmount?: number;
+
+    @IsString()
+    @IsOptional()
+    promotionalText?: string;
+
+    @IsString()
+    @IsOptional()
+    promotionalBadge?: string;
+
+    @IsBoolean()
+    @IsOptional()
+    isPromotional?: boolean = false;
+
+    @IsDate()
+    @Type(() => Date)
+    @IsOptional()
+    promoStartDate?: Date;
+
+    @IsDate()
+    @Type(() => Date)
+    @IsOptional()
+    promoEndDate?: Date;
 }
