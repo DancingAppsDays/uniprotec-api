@@ -43,9 +43,14 @@ export class CreateCourseDateDto {
     @IsOptional()
     enrolledCount: number = 0;
 
+    @IsOptional()
     @ValidateNested()
     @Type(() => InstructorDto)
     instructor: InstructorDto;
+
+    @IsString()
+    @IsOptional()
+    instructorOverride?: string;
 
     @IsString()
     @IsOptional()

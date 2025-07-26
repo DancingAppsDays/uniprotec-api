@@ -53,6 +53,9 @@ export class CourseDate {
     @Prop({ type: InstructorSchema, required: true })
     instructor: Instructor;
 
+    @Prop()
+    instructorOverride?: string;
+
     @Prop({ required: true, default: '' })
     location: string;
 
